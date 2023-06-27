@@ -9,7 +9,7 @@ authors = [
   { name="Julia Pfitzer", email="git@jupfi.me" },
 ]
 
-description = "Simple Python script to interact with an automatic Tuning and Matching (TM) system used for NQR spectroscopy."
+description = "A module for the NQRduck program (a simple python script™) for automatic Tuning and Matching (TM) system used for NQR spectroscopy."
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.8"
