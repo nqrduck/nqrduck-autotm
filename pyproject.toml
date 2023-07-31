@@ -24,6 +24,7 @@ dependencies = [
     "matplotlib",
     "pyqt6",
     "NQRduck",
+    "pyserial",
 ]
 
 [project.entry-points."nqrduck"]
