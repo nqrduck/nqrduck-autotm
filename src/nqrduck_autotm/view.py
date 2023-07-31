@@ -37,6 +37,28 @@ class AutoTMView(ModuleView):
         self._ui_form.scrollAreaWidgetContents.setLayout(QVBoxLayout())
         self._ui_form.scrollAreaWidgetContents.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
 
+        self.init_plot()
+        self.init_labels()
+
+    def init_labels(self) -> None:
+        """Makes some of the labels bold for better readability. 
+        """
+        self._ui_form.titleconnectionLabel.setStyleSheet("font-weight: bold;")
+        self._ui_form.titlefrequencyLabel.setStyleSheet("font-weight: bold;")
+        self._ui_form.titletypeLabel.setStyleSheet("font-weight: bold;")
+        self._ui_form.titleinfoLabel.setStyleSheet("font-weight: bold;")
+
+    def init_plot(self) -> None:
+        """Initialize the S11 plot. """
+        ax = self._ui_form.S11Plot.canvas.ax
+        ax.set_xlabel("Frequency (MHz)")
+        ax.set_ylabel("S11 (dB)")
+        ax.set_title("S11")
+        ax.grid(True)
+        ax.set_xlim(0, 100)
+        ax.set_ylim(-100, 0)
+        self._ui_form.S11Plot.canvas.draw()
+
     @pyqtSlot(list)
     def on_available_devices_changed(self, available_devices : list) -> None:
         """Update the available devices list in the view. """

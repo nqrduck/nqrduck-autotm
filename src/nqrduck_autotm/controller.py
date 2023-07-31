@@ -26,3 +26,5 @@ class AutoTMController(ModuleController):
         except serial.SerialException as e:
             logger.error("Failed to connect to device %s", device)
             logger.error(e)
+
+
