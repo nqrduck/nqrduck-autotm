@@ -27,4 +27,6 @@ class AutoTMController(ModuleController):
             logger.error("Failed to connect to device %s", device)
             logger.error(e)
 
-
+    def start_frequency_sweep(self, start_frequency : float, stop_frequency : float) -> None:
+        """ This starts a frequency sweep on the device in the specified range."""
+        pass
