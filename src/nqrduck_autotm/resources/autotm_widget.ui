@@ -156,9 +156,16 @@
       </layout>
      </item>
      <item>
-      <widget class="QPushButton" name="pushButton_2">
+      <widget class="QPushButton" name="startButton">
        <property name="text">
         <string>Start Sweep</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton">
+       <property name="text">
+        <string>Calibrate</string>
        </property>
       </widget>
      </item>
@@ -193,7 +200,7 @@
           <x>0</x>
           <y>0</y>
           <width>273</width>
-          <height>229</height>
+          <height>189</height>
          </rect>
         </property>
        </widget>

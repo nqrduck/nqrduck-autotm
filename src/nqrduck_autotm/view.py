@@ -1,8 +1,8 @@
 import logging
-import serial
 from datetime import datetime
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PyQt6.QtCore import pyqtSlot, Qt 
+from PyQt6.QtSerialPort import QSerialPort
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
+from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from .widget import Ui_Form
 
@@ -32,6 +32,15 @@ class AutoTMView(ModuleView):
 
         # On clicking of the connect button call the connect method
         self._ui_form.connectButton.clicked.connect(self.on_connect_button_clicked)
+
+        # On clicking of the start button call the start_frequency_sweep method
+        self._ui_form.startButton.clicked.connect(lambda: self.module.controller.start_frequency_sweep(
+            float(self._ui_form.startEdit.text()),
+            float(self._ui_form.stopEdit.text())
+        ))
+
+        # Connect the data points changed signal to the on_data_points_changed slot
+        self.module.model.data_points_changed.connect(self.on_data_points_changed)
 
         # Add a vertical layout to the info box
         self._ui_form.scrollAreaWidgetContents.setLayout(QVBoxLayout())
@@ -81,19 +90,42 @@ class AutoTMView(ModuleView):
         selected_device = self._ui_form.portBox.currentText()
         self.module.controller.connect(selected_device)
 
-    @pyqtSlot(serial.Serial)
-    def on_serial_changed(self, serial : serial.Serial) -> None:
+    @pyqtSlot(QSerialPort)
+    def on_serial_changed(self, serial : QSerialPort) -> None:
         """Update the serial 'connectionLabel' according to the current serial connection. 
         
         Args:
             serial (serial.Serial): The current serial connection."""
         logger.debug("Updating serial connection label")
-        if serial.is_open:
-            self._ui_form.connectionLabel.setText(serial.port)
-            self.add_info_text("Connected to device %s" % serial.port)
+        if serial.isOpen():
+            self._ui_form.connectionLabel.setText(serial.portName())
+            self.add_info_text("Connected to device %s" % serial.portName())
         else:
             self._ui_form.connectionLabel.setText("Disconnected")
         logger.debug("Updated serial connection label")
+
+    @pyqtSlot(list)
+    def on_data_points_changed(self, data_points : list) -> None:
+        """Update the S11 plot with the current data points. 
+        
+        Args:
+            data_points (list): List of data points to plot. 
+        """
+        x = [data_point[0] for data_point in data_points]
+        y = [data_point[1] for data_point in data_points]
+        ax = self._ui_form.S11Plot.canvas.ax
+        ax.clear()
+        ax.set_xlabel("Frequency (MHz)")
+        ax.set_ylabel("S11 (dB)")
+        ax.set_title("S11")
+        ax.grid(True)
+        ax.plot(x, y)
+        # make the y axis go down instead of up
+        ax.invert_yaxis()
+        self._ui_form.S11Plot.canvas.draw()
+        self._ui_form.S11Plot.canvas.flush_events()
+        # Wait for the signals to be processed before adding the info text
+        QApplication.processEvents()
 
     def add_info_text(self, text : str) -> None:
         """ Adds text to the info text box. 
