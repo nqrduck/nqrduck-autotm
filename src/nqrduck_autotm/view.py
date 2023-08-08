@@ -1,9 +1,12 @@
 import logging
 from datetime import datetime
+from pathlib import Path
+from PyQt6.QtGui import QMovie
 from PyQt6.QtSerialPort import QSerialPort
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication, QHBoxLayout, QLineEdit, QPushButton, QDialog
 from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
+from nqrduck.contrib.mplwidget import MplWidget 
 from .widget import Ui_Form
 
 logger = logging.getLogger(__name__)
@@ -39,8 +42,8 @@ class AutoTMView(ModuleView):
             float(self._ui_form.stopEdit.text())
         ))
 
-        # Connect the data points changed signal to the on_data_points_changed slot
-        self.module.model.data_points_changed.connect(self.on_data_points_changed)
+        # On clicking of the calibration button call the on_calibration_button_clicked method
+        self._ui_form.calibrationButton.clicked.connect(self.on_calibration_button_clicked)
 
         # Add a vertical layout to the info box
         self._ui_form.scrollAreaWidgetContents.setLayout(QVBoxLayout())
@@ -67,6 +70,14 @@ class AutoTMView(ModuleView):
         ax.set_xlim(0, 100)
         ax.set_ylim(-100, 0)
         self._ui_form.S11Plot.canvas.draw()
+
+    def on_calibration_button_clicked(self) -> None:
+        """This method is called when the calibration button is clicked. 
+        It opens the calibration window.
+        """
+        logger.debug("Calibration button clicked")
+        self.calibration_window = self.CalibrationWindow(self.module)
+        self.calibration_window.show()
 
     @pyqtSlot(list)
     def on_available_devices_changed(self, available_devices : list) -> None:
@@ -104,15 +115,32 @@ class AutoTMView(ModuleView):
             self._ui_form.connectionLabel.setText("Disconnected")
         logger.debug("Updated serial connection label")
 
-    @pyqtSlot(list)
-    def on_data_points_changed(self, data_points : list) -> None:
+    def plot_data(self) -> None:
         """Update the S11 plot with the current data points. 
         
         Args:
             data_points (list): List of data points to plot. 
         """
-        x = [data_point[0] for data_point in data_points]
-        y = [data_point[1] for data_point in data_points]
+        x = [data_point[0] for data_point in self.module.model.data_points]
+        y = [(data_point[1] - 900) / 30 for data_point in self.module.model.data_points]
+        phase = [(data_point[2] - 900) / 10 for data_point in self.module.model.data_points]
+
+        # Calibration test:
+        #calibration = self.module.model.calibration
+        #e_00 = calibration[0]
+        #e11 = calibration[1]
+        #delta_e = calibration[2]
+
+        #y_corr = [(data_point - e_00[i]) / (data_point * e11[i] - delta_e[i]) for i, data_point in enumerate(y)]
+        #import numpy as np
+        #y = [data_point[1] for data_point in self.module.model.data_points]
+        #open_calibration = [data_point[1] for data_point in self.module.model.open_calibration]
+        #load_calibration = [data_point[1] for data_point in self.module.model.load_calibration]
+        #short_calibration = [data_point[1] for data_point in self.module.model.short_calibration]
+
+        #y_corr = np.array(y) - np.array(load_calibration)
+        #y_corr = y_corr - np.mean(y_corr)
+
         ax = self._ui_form.S11Plot.canvas.ax
         ax.clear()
         ax.set_xlabel("Frequency (MHz)")
@@ -120,6 +148,7 @@ class AutoTMView(ModuleView):
         ax.set_title("S11")
         ax.grid(True)
         ax.plot(x, y)
+        ax.plot(x, phase)
         # make the y axis go down instead of up
         ax.invert_yaxis()
         self._ui_form.S11Plot.canvas.draw()
@@ -140,3 +169,168 @@ class AutoTMView(ModuleView):
         text_label.setStyleSheet("font-size: 25px;")
         self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
         self._ui_form.scrollArea.verticalScrollBar().setValue(self._ui_form.scrollArea.verticalScrollBar().maximum())
+
+    def create_frequency_sweep_spinner_dialog(self) -> None:
+        """Creates a frequency sweep spinner dialog. """
+        self.frequency_sweep_spinner = self.FrequencySweepSpinner()
+        self.frequency_sweep_spinner.show()
+
+    class FrequencySweepSpinner(QDialog):
+        """This class implements a spinner dialog that is shown during a frequency sweep."""
+
+        def __init__(self):
+            super().__init__()
+            self.setWindowTitle("Frequency sweep")
+            self.setModal(True)
+            self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+            path = Path(__file__).parent
+            self.spinner_movie = QMovie(str(path / "resources/duck_kick.gif"))
+            self.spinner_label = QLabel(self)
+            self.spinner_label.setMovie(self.spinner_movie)
+
+            self.layout = QVBoxLayout(self)
+            self.layout.addWidget(self.spinner_label)
+
+            self.spinner_movie.start()
+
+
+    class CalibrationWindow(QWidget):
+
+        def __init__(self, module, parent=None):
+            super().__init__()
+            self.module = module
+            self.setParent(parent)
+            self.setWindowTitle("Calibration")
+
+            # Add vertical main layout
+            main_layout = QVBoxLayout()
+
+            # Add horizontal layout for the frequency range
+            frequency_layout = QHBoxLayout()
+            main_layout.addLayout(frequency_layout)
+            frequency_label = QLabel("Frequency range")
+            frequency_layout.addWidget(frequency_label)
+            start_edit = QLineEdit()
+            start_edit.setPlaceholderText("Start")
+            frequency_layout.addWidget(start_edit)
+            stop_edit = QLineEdit()
+            stop_edit.setPlaceholderText("Stop")
+            frequency_layout.addWidget(stop_edit)
+            unit_label = QLabel("MHz")
+            frequency_layout.addWidget(unit_label)
+        
+            # Add horizontal layout for the calibration type
+            type_layout = QHBoxLayout()
+            main_layout.addLayout(type_layout)
+
+            # Add vertical layout for short calibration
+            short_layout = QVBoxLayout()
+            short_button = QPushButton("Short")
+            short_button.clicked.connect(lambda: self.module.controller.on_short_calibration(
+                float(start_edit.text()),
+                float(stop_edit.text())
+            ))
+            # Short plot widget
+            self.short_plot = MplWidget()
+            short_layout.addWidget(self.short_plot)
+            short_layout.addWidget(short_button)
+            type_layout.addLayout(short_layout)
+
+            # Add vertical layout for open calibration
+            open_layout = QVBoxLayout()
+            open_button = QPushButton("Open")
+            open_button.clicked.connect(lambda: self.module.controller.on_open_calibration(
+                float(start_edit.text()),
+                float(stop_edit.text())
+            ))
+            # Open plot widget
+            self.open_plot = MplWidget()
+            open_layout.addWidget(self.open_plot)
+            open_layout.addWidget(open_button)
+            type_layout.addLayout(open_layout)
+
+            # Add vertical layout for load calibration
+            load_layout = QVBoxLayout()
+            load_button = QPushButton("Load")
+            load_button.clicked.connect(lambda: self.module.controller.on_load_calibration(
+                float(start_edit.text()),
+                float(stop_edit.text())
+            ))
+            # Load plot widget
+            self.load_plot = MplWidget()
+            load_layout.addWidget(self.load_plot)
+            load_layout.addWidget(load_button)
+            type_layout.addLayout(load_layout)
+
+            # Add vertical layout for save calibration
+            data_layout = QVBoxLayout()
+            # Export button
+            export_button = QPushButton("Export")
+            export_button.clicked.connect(self.on_export_button_clicked)
+            data_layout.addWidget(export_button)
+            # Import button
+            import_button = QPushButton("Import")
+            import_button.clicked.connect(self.on_import_button_clicked)
+            data_layout.addWidget(import_button)
+            # Apply button
+            apply_button = QPushButton("Apply calibration")
+            apply_button.clicked.connect(self.on_apply_button_clicked)
+            data_layout.addWidget(apply_button)
+
+            main_layout.addLayout(data_layout)
+            
+            self.setLayout(main_layout)
+
+            # Connect the calibration finished signals to the on_calibration_finished slot
+            self.module.model.short_calibration_finished.connect(self.on_short_calibration_finished)
+            self.module.model.open_calibration_finished.connect(self.on_open_calibration_finished)
+            self.module.model.load_calibration_finished.connect(self.on_load_calibration_finished)
+
+        def on_short_calibration_finished(self, short_calibration : list) -> None:
+            self.on_calibration_finished("short", self.short_plot, short_calibration)
+
+        def on_open_calibration_finished(self, open_calibration : list) -> None:
+            self.on_calibration_finished("open", self.open_plot, open_calibration)
+
+        def on_load_calibration_finished(self, load_calibration : list) -> None:
+            self.on_calibration_finished("load", self.load_plot, load_calibration)
+
+        def on_calibration_finished(self, type : str, widget: MplWidget, data :list) -> None:
+            """This method is called when a calibration has finished. 
+            It plots the calibration data on the given widget.
+            """
+            x = [data_point[0] for data_point in data]
+            magnitude = [data_point[1] for data_point in data]
+            phase = [data_point[2] for data_point in data]
+            ax = widget.canvas.ax
+            ax.clear()
+            ax.set_xlabel("Frequency (MHz)")
+            ax.set_ylabel("S11 (dB)")
+            ax.set_title("S11")
+            ax.grid(True)
+            ax.plot(x, magnitude, label="Magnitude")
+            ax.plot(x, phase, label="Phase")
+            ax.legend()
+            # make the y axis go down instead of up
+            ax.invert_yaxis()
+            widget.canvas.draw()
+            widget.canvas.flush_events()
+
+        def on_export_button_clicked(self) -> None:
+            """This method is called when the export button is clicked. """
+            pass
+
+        def on_import_button_clicked(self) -> None:
+            """This method is called when the import button is clicked. """
+            pass
+
+        def on_apply_button_clicked(self) -> None:
+            """This method is called when the apply button is clicked. """
+            self.module.controller.calculate_calibration()
+            # Close the calibration window
+            self.close()
+    
+
+    
