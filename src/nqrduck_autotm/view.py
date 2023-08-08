@@ -141,16 +141,22 @@ class AutoTMView(ModuleView):
         #y_corr = np.array(y) - np.array(load_calibration)
         #y_corr = y_corr - np.mean(y_corr)
 
-        ax = self._ui_form.S11Plot.canvas.ax
-        ax.clear()
-        ax.set_xlabel("Frequency (MHz)")
-        ax.set_ylabel("S11 (dB)")
-        ax.set_title("S11")
-        ax.grid(True)
-        ax.plot(x, y)
-        ax.plot(x, phase)
+        phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
+        phase_ax.set_ylabel("Phase (deg)")
+        phase_ax.plot(x, phase, color="orange", linestyle="--")
+        phase_ax.set_ylim(-180, 180)
+        phase_ax.invert_yaxis()
+
+        magnitude_ax = self._ui_form.S11Plot.canvas.ax
+        magnitude_ax.clear()
+        magnitude_ax.set_xlabel("Frequency (MHz)")
+        magnitude_ax.set_ylabel("S11 (dB)")
+        magnitude_ax.set_title("S11")
+        magnitude_ax.grid(True)
+        magnitude_ax.plot(x, y)
         # make the y axis go down instead of up
-        ax.invert_yaxis()
+        magnitude_ax.invert_yaxis()
+
         self._ui_form.S11Plot.canvas.draw()
         self._ui_form.S11Plot.canvas.flush_events()
         # Wait for the signals to be processed before adding the info text
