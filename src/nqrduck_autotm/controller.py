@@ -54,31 +54,42 @@ class AutoTMController(ModuleController):
             text = text.rstrip('\r\n')
             # logger.debug("Received data: %s", text)
             # If the text starts with 'f' and the frequency sweep spinner is visible we know that the data is a data point
+            # then we have the data for the return loss and the phase at a certain frequency
             if text.startswith("f") and self.module.view.frequency_sweep_spinner.isVisible():
                 text = text[1:].split("r")
                 frequency = float(text[0])
                 return_loss, phase = map(float, text[1].split("p"))
                 self.module.model.add_data_point(frequency, return_loss, phase)
+            # If the text starts with 'r' and no calibration is active we know that the data is a measurement
             elif text.startswith("r") and self.module.model.active_calibration == None:
                 logger.debug("Measurement finished")
-                self.module.view.plot_data()
+                self.module.model.measurement = self.module.model.data_points.copy()
                 self.module.view.frequency_sweep_spinner.hide()
+            # If the text starts with 'r' and a short calibration is active we know that the data is a short calibration
             elif text.startswith("r") and self.module.model.active_calibration == "short":
                 logger.debug("Short calibration finished")
                 self.module.model.short_calibration = self.module.model.data_points.copy()
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
+            # If the text starts with 'r' and an open calibration is active we know that the data is an open calibration
             elif text.startswith("r") and self.module.model.active_calibration == "open":
                 logger.debug("Open calibration finished")
                 self.module.model.open_calibration = self.module.model.data_points.copy()
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
+            # If the text starts with 'r' and a load calibration is active we know that the data is a load calibration
             elif text.startswith("r") and self.module.model.active_calibration == "load":
                 logger.debug("Load calibration finished")
                 self.module.model.load_calibration = self.module.model.data_points.copy()
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
-            else:
+            # If the text starts with 'i' we know that the data is an info message
+            elif text.startswith("i"):
+                text = "ATM Info: " + text[1:]
+                self.module.view.add_info_text(text)
+            # If the text starts with 'e' we know that the data is an error message
+            elif text.startswith("e"):
+                text = "ATM Error: " + text[1:]
                 self.module.view.add_info_text(text)
 
     def on_short_calibration(self, start_frequency : float, stop_frequency : float) -> None:
@@ -133,9 +144,9 @@ class AutoTMController(ModuleController):
         ideal_gamma_open = 1
         ideal_gamma_load = 0
 
-        short_calibration = [10 **(-returnloss_s[1] /6 / 24 / 20) for returnloss_s in self.module.model.short_calibration]
-        open_calibration = [10 **(-returnloss_o[1] / 6 / 24 / 20) for returnloss_o in self.module.model.open_calibration]
-        load_calibration = [10 **(-returnloss_l[1] / 6 / 24 / 20) for returnloss_l in self.module.model.load_calibration]
+        short_calibration = [10 **(-returnloss_s[1]) for returnloss_s in self.module.model.short_calibration]
+        open_calibration = [10 **(-returnloss_o[1]) for returnloss_o in self.module.model.open_calibration]
+        load_calibration = [10 **(-returnloss_l[1]) for returnloss_l in self.module.model.load_calibration]
 
         e_00s = []
         e11s = []

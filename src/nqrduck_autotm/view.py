@@ -45,9 +45,13 @@ class AutoTMView(ModuleView):
         # On clicking of the calibration button call the on_calibration_button_clicked method
         self._ui_form.calibrationButton.clicked.connect(self.on_calibration_button_clicked)
 
+        # Connect the measurement finished signal to the plot_measurement slot
+        self.module.model.measurement_finished.connect(self.plot_measurement)
+
         # Add a vertical layout to the info box
         self._ui_form.scrollAreaWidgetContents.setLayout(QVBoxLayout())
         self._ui_form.scrollAreaWidgetContents.layout().setAlignment(Qt.AlignmentFlag.AlignTop)
+
 
         self.init_plot()
         self.init_labels()
@@ -115,15 +119,15 @@ class AutoTMView(ModuleView):
             self._ui_form.connectionLabel.setText("Disconnected")
         logger.debug("Updated serial connection label")
 
-    def plot_data(self) -> None:
+    def plot_measurement(self, data : "S11Data") -> None:
         """Update the S11 plot with the current data points. 
         
         Args:
             data_points (list): List of data points to plot. 
         """
-        x = [data_point[0] for data_point in self.module.model.data_points]
-        y = [(data_point[1] - 900) / 30 for data_point in self.module.model.data_points]
-        phase = [(data_point[2] - 900) / 10 for data_point in self.module.model.data_points]
+        frequency = data.frequency
+        return_loss_db = data.return_loss_db
+        phase = data.phase_deg
 
         # Calibration test:
         #calibration = self.module.model.calibration
@@ -143,7 +147,7 @@ class AutoTMView(ModuleView):
 
         phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
         phase_ax.set_ylabel("Phase (deg)")
-        phase_ax.plot(x, phase, color="orange", linestyle="--")
+        phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         phase_ax.set_ylim(-180, 180)
         phase_ax.invert_yaxis()
 
@@ -153,7 +157,7 @@ class AutoTMView(ModuleView):
         magnitude_ax.set_ylabel("S11 (dB)")
         magnitude_ax.set_title("S11")
         magnitude_ax.grid(True)
-        magnitude_ax.plot(x, y)
+        magnitude_ax.plot(frequency, return_loss_db, color="blue")
         # make the y axis go down instead of up
         magnitude_ax.invert_yaxis()
 
@@ -294,33 +298,39 @@ class AutoTMView(ModuleView):
             self.module.model.open_calibration_finished.connect(self.on_open_calibration_finished)
             self.module.model.load_calibration_finished.connect(self.on_load_calibration_finished)
 
-        def on_short_calibration_finished(self, short_calibration : list) -> None:
+        def on_short_calibration_finished(self, short_calibration : "S11Data") -> None:
             self.on_calibration_finished("short", self.short_plot, short_calibration)
 
-        def on_open_calibration_finished(self, open_calibration : list) -> None:
+        def on_open_calibration_finished(self, open_calibration : "S11Data") -> None:
             self.on_calibration_finished("open", self.open_plot, open_calibration)
 
-        def on_load_calibration_finished(self, load_calibration : list) -> None:
+        def on_load_calibration_finished(self, load_calibration : "S11Data") -> None:
             self.on_calibration_finished("load", self.load_plot, load_calibration)
 
-        def on_calibration_finished(self, type : str, widget: MplWidget, data :list) -> None:
+        def on_calibration_finished(self, type : str, widget: MplWidget, data :"S11Data") -> None:
             """This method is called when a calibration has finished. 
             It plots the calibration data on the given widget.
             """
-            x = [data_point[0] for data_point in data]
-            magnitude = [data_point[1] for data_point in data]
-            phase = [data_point[2] for data_point in data]
-            ax = widget.canvas.ax
-            ax.clear()
-            ax.set_xlabel("Frequency (MHz)")
-            ax.set_ylabel("S11 (dB)")
-            ax.set_title("S11")
-            ax.grid(True)
-            ax.plot(x, magnitude, label="Magnitude")
-            ax.plot(x, phase, label="Phase")
-            ax.legend()
+            frequency = data.frequency
+            return_loss_db = data.return_loss_db
+            phase = data.phase_deg
+
+            phase_ax = widget.canvas.ax.twinx()
+            phase_ax.set_ylabel("Phase (deg)")
+            phase_ax.plot(frequency, phase, color="orange", linestyle="--")
+            phase_ax.set_ylim(-180, 180)
+            phase_ax.invert_yaxis()
+
+            magnitude_ax = widget.canvas.ax
+            magnitude_ax.clear()
+            magnitude_ax.set_xlabel("Frequency (MHz)")
+            magnitude_ax.set_ylabel("S11 (dB)")
+            magnitude_ax.set_title("S11")
+            magnitude_ax.grid(True)
+            magnitude_ax.plot(frequency, return_loss_db, color="blue")
             # make the y axis go down instead of up
-            ax.invert_yaxis()
+            magnitude_ax.invert_yaxis()
+
             widget.canvas.draw()
             widget.canvas.flush_events()
 
