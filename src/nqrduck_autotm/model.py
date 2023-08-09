@@ -40,7 +40,22 @@ class S11Data:
     @property
     def gamma(self):
         """Complex reflection coefficient"""
-        return cmath.rect(10 ** (-self.return_loss_db / 20), self.phase_rad)
+        return map(cmath.rect, (10 ** (-self.return_loss_db / 20), self.phase_rad))
+    
+    def to_json(self):
+        return {
+            "frequency": self.frequency.tolist(),
+            "return_loss_mv": self.return_loss_mv.tolist(),
+            "phase_mv": self.phase_mv.tolist()
+        }
+    
+    @classmethod
+    def from_json(cls, json):
+        f = json["frequency"]
+        rl = json["return_loss_mv"]
+        p = json["phase_mv"]
+        data = [(f[i], rl[i], p[i]) for i in range(len(f))]
+        return cls(data)
 
 class AutoTMModel(ModuleModel):
 
@@ -99,8 +114,8 @@ class AutoTMModel(ModuleModel):
     @measurement.setter
     def measurement(self, value):
         """The measurement value is a tuple of three lists: frequency, return loss and phase."""
-        self._measurement = S11Data(value)
-        self.measurement_finished.emit(self._measurement)
+        self._measurement = value
+        self.measurement_finished.emit(value)
 
     # Calibration properties
 
@@ -119,8 +134,8 @@ class AutoTMModel(ModuleModel):
     @short_calibration.setter
     def short_calibration(self, value):
         logger.debug("Setting short calibration")
-        self._short_calibration = S11Data(value)
-        self.short_calibration_finished.emit(self._short_calibration)
+        self._short_calibration = value
+        self.short_calibration_finished.emit(value)
 
     def init_short_calibration(self):
         """This method is called when a frequency sweep has been started for a short calibration in this way the module knows that the next data points are for a short calibration."""
@@ -134,8 +149,8 @@ class AutoTMModel(ModuleModel):
     @open_calibration.setter
     def open_calibration(self, value):
         logger.debug("Setting open calibration")
-        self._open_calibration = S11Data(value)
-        self.open_calibration_finished.emit(self._open_calibration)
+        self._open_calibration = value
+        self.open_calibration_finished.emit(value)
 
     def init_open_calibration(self):
         """This method is called when a frequency sweep has been started for an open calibration in this way the module knows that the next data points are for an open calibration."""
@@ -149,8 +164,8 @@ class AutoTMModel(ModuleModel):
     @load_calibration.setter
     def load_calibration(self, value):
         logger.debug("Setting load calibration")
-        self._load_calibration = S11Data(value)
-        self.load_calibration_finished.emit(self._load_calibration)
+        self._load_calibration = value
+        self.load_calibration_finished.emit(value)
 
     def init_load_calibration(self):
         """This method is called when a frequency sweep has been started for a load calibration in this way the module knows that the next data points are for a load calibration."""

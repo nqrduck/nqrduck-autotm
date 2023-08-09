@@ -1,9 +1,11 @@
 import logging
 from datetime import datetime
 from pathlib import Path
+import smithplot
+from smithplot import SmithAxes
 from PyQt6.QtGui import QMovie
 from PyQt6.QtSerialPort import QSerialPort
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication, QHBoxLayout, QLineEdit, QPushButton, QDialog
+from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication, QHBoxLayout, QLineEdit, QPushButton, QDialog, QFileDialog
 from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget 
@@ -129,6 +131,7 @@ class AutoTMView(ModuleView):
         return_loss_db = data.return_loss_db
         phase = data.phase_deg
 
+        gamma = data.gamma
         # Calibration test:
         #calibration = self.module.model.calibration
         #e_00 = calibration[0]
@@ -335,12 +338,25 @@ class AutoTMView(ModuleView):
             widget.canvas.flush_events()
 
         def on_export_button_clicked(self) -> None:
-            """This method is called when the export button is clicked. """
-            pass
+            filedialog = QFileDialog()
+            filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            filedialog.setNameFilter("calibration files (*.cal)")
+            filedialog.setDefaultSuffix("cal")
+            filedialog.exec()
+            filename = filedialog.selectedFiles()[0]
+            logger.debug("Exporting calibration to %s" % filename)
+            self.module.controller.export_calibration(filename)
 
         def on_import_button_clicked(self) -> None:
             """This method is called when the import button is clicked. """
-            pass
+            filedialog = QFileDialog()
+            filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+            filedialog.setNameFilter("calibration files (*.cal)")
+            filedialog.setDefaultSuffix("cal")
+            filedialog.exec()
+            filename = filedialog.selectedFiles()[0]
+            logger.debug("Importing calibration from %s" % filename)
+            self.module.controller.import_calibration(filename)
 
         def on_apply_button_clicked(self) -> None:
             """This method is called when the apply button is clicked. """

@@ -1,9 +1,11 @@
 import logging
 import numpy as np
+import json
 from serial.tools.list_ports import comports
 from PyQt6 import QtSerialPort
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
 from nqrduck.module.module_controller import ModuleController
+from .model import S11Data
 
 logger = logging.getLogger(__name__)
 
@@ -63,24 +65,24 @@ class AutoTMController(ModuleController):
             # If the text starts with 'r' and no calibration is active we know that the data is a measurement
             elif text.startswith("r") and self.module.model.active_calibration == None:
                 logger.debug("Measurement finished")
-                self.module.model.measurement = self.module.model.data_points.copy()
+                self.module.model.measurement = S11Data(self.module.model.data_points.copy())
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'r' and a short calibration is active we know that the data is a short calibration
             elif text.startswith("r") and self.module.model.active_calibration == "short":
                 logger.debug("Short calibration finished")
-                self.module.model.short_calibration = self.module.model.data_points.copy()
+                self.module.model.short_calibration = S11Data(self.module.model.data_points.copy())
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'r' and an open calibration is active we know that the data is an open calibration
             elif text.startswith("r") and self.module.model.active_calibration == "open":
                 logger.debug("Open calibration finished")
-                self.module.model.open_calibration = self.module.model.data_points.copy()
+                self.module.model.open_calibration = S11Data(self.module.model.data_points.copy())
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'r' and a load calibration is active we know that the data is a load calibration
             elif text.startswith("r") and self.module.model.active_calibration == "load":
                 logger.debug("Load calibration finished")
-                self.module.model.load_calibration = self.module.model.data_points.copy()
+                self.module.model.load_calibration = S11Data(self.module.model.data_points.copy())
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'i' we know that the data is an info message
@@ -123,20 +125,13 @@ class AutoTMController(ModuleController):
         logger.debug("Calculating calibration")
         # First we check if the short and open calibration data points are available
         if self.module.model.short_calibration == None:
-            logger.error("No short calibration data points available")
+            logger.error("Could not calculate calibration. No short calibration data points available.")
             return
-        
         if self.module.model.open_calibration == None:
-            logger.error("No open calibration data points available")
+            logger.error("Could not calculate calibration. No open calibration data points available.")
             return
-        
         if self.module.model.load_calibration == None:
-            logger.error("No load calibration data points available")
-            return
-        
-        # Then we check if the short, open and load calibration data points have the same length
-        if len(self.module.model.short_calibration) != len(self.module.model.open_calibration) or len(self.module.model.short_calibration) != len(self.module.model.load_calibration):
-            logger.error("The short, open and load calibration data points do not have the same length")
+            logger.error("Could not calculate calibration. No load calibration data points available.")
             return
         
         # Then we calculate the calibration
@@ -144,14 +139,14 @@ class AutoTMController(ModuleController):
         ideal_gamma_open = 1
         ideal_gamma_load = 0
 
-        short_calibration = [10 **(-returnloss_s[1]) for returnloss_s in self.module.model.short_calibration]
-        open_calibration = [10 **(-returnloss_o[1]) for returnloss_o in self.module.model.open_calibration]
-        load_calibration = [10 **(-returnloss_l[1]) for returnloss_l in self.module.model.load_calibration]
+        measured_gamma_short = self.module.model.short_calibration.gamma
+        measured_gamma_open = self.module.model.open_calibration.gamma
+        measured_gamma_load = self.module.model.load_calibration.gamma
 
         e_00s = []
         e11s = []
         delta_es = []
-        for gamma_s, gamma_o, gamma_l in zip(short_calibration, open_calibration, load_calibration):
+        for gamma_s, gamma_o, gamma_l in zip(measured_gamma_short, measured_gamma_open, measured_gamma_load):
             A = np.array([
                 [1, ideal_gamma_short * gamma_s, -ideal_gamma_short],
                 [1, ideal_gamma_open * gamma_o, -ideal_gamma_open],
@@ -168,3 +163,50 @@ class AutoTMController(ModuleController):
             delta_es.append(delta_e)
 
         self.module.model.calibration = (e_00s, e11s, delta_es)
+
+    def export_calibration(self, filename: str) -> None:
+        """This method is called when the export calibration button is pressed.
+        It exports the data of the short, open and load calibration to a file.
+
+        Args:
+            filename (str): The filename of the file to export to.
+        """
+        logger.debug("Exporting calibration")
+        # First we check if the short and open calibration data points are available
+        if self.module.model.short_calibration == None:
+            logger.error("Could not export calibration. No short calibration data points available.")
+            return
+        
+        if self.module.model.open_calibration == None:
+            logger.error("Could not export calibration. No open calibration data points available.")
+            return
+        
+        if self.module.model.load_calibration == None:
+            logger.error("Could not export calibration. No load calibration data points available.")
+            return
+
+        # Then we export the different calibrations as a json file
+        data = {
+            "short": self.module.model.short_calibration.to_json(),
+            "open": self.module.model.open_calibration.to_json(),
+            "load": self.module.model.load_calibration.to_json()
+        }
+
+        with open(filename, "w") as f:
+            json.dump(data, f)
+
+    def import_calibration(self, filename: str) -> None:
+        """This method is called when the import calibration button is pressed.
+        It imports the data of the short, open and load calibration from a file.
+
+        Args:
+            filename (str): The filename of the file to import from.
+        """
+        logger.debug("Importing calibration")
+
+        # We import the different calibrations from a json file
+        with open(filename, "r") as f:
+            data = json.load(f)
+            self.module.model.short_calibration = S11Data.from_json(data["short"])
+            self.module.model.open_calibration = S11Data.from_json(data["open"])
+            self.module.model.load_calibration = S11Data.from_json(data["load"])
