@@ -147,6 +147,7 @@ class AutoTMView(ModuleView):
          """
         
         magnitude_ax = self._ui_form.S11Plot.canvas.ax
+        magnitude_ax.clear()
         # @ TODO: implement proper calibration
         if self.module.model.calibration is not None:
             # Calibration test:
@@ -170,13 +171,14 @@ class AutoTMView(ModuleView):
             magnitude_ax.plot(frequency, return_loss_db_corr, color="red")
 
         phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
+        phase_ax.clear()
         phase_ax.set_ylabel("Phase (deg)")
         phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         phase_ax.set_ylim(-180, 180)
         phase_ax.invert_yaxis()
 
         
-        magnitude_ax.clear()
+        
         magnitude_ax.set_xlabel("Frequency (MHz)")
         magnitude_ax.set_ylabel("S11 (dB)")
         magnitude_ax.set_title("S11")
