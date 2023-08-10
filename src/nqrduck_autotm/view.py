@@ -40,8 +40,8 @@ class AutoTMView(ModuleView):
 
         # On clicking of the start button call the start_frequency_sweep method
         self._ui_form.startButton.clicked.connect(lambda: self.module.controller.start_frequency_sweep(
-            float(self._ui_form.startEdit.text()),
-            float(self._ui_form.stopEdit.text())
+            self._ui_form.startEdit.text(),
+            self._ui_form.stopEdit.text()
         ))
 
         # On clicking of the calibration button call the on_calibration_button_clicked method
@@ -203,6 +203,20 @@ class AutoTMView(ModuleView):
         text = "[%s] %s" % (timestamp, text)
         text_label = QLabel(text)
         text_label.setStyleSheet("font-size: 25px;")
+        self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
+        self._ui_form.scrollArea.verticalScrollBar().setValue(self._ui_form.scrollArea.verticalScrollBar().maximum())
+
+    def add_error_text(self, text : str) -> None:
+        """ Adds text to the error text box. 
+        
+        Args:
+            text (str): Text to add to the error text box. 
+        """
+        # Add a timestamp to the text
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        text = "[%s] %s ERROR:" % (timestamp, text)
+        text_label = QLabel(text)
+        text_label.setStyleSheet("font-size: 25px; color: red;")
         self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
         self._ui_form.scrollArea.verticalScrollBar().setValue(self._ui_form.scrollArea.verticalScrollBar().maximum())
 

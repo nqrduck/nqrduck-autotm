@@ -22,7 +22,10 @@ class AutoTMController(ModuleController):
             logger.debug("Found device: %s", device)
 
     def connect(self, device : str) -> None:
-        """Connect to the specified device. """
+        """Connect to the specified device. 
+        
+        Args:
+            device (str): The device port to connect to."""
         logger.debug("Connecting to device %s", device)
         try:
             self.module.model.serial = QtSerialPort.QSerialPort(device, baudRate=self.BAUDRATE, readyRead=self.on_ready_read)
@@ -34,18 +37,55 @@ class AutoTMController(ModuleController):
         except Exception as e:
             logger.error("Could not connect to device %s: %s", device, e)
 
-    def start_frequency_sweep(self, start_frequency : float, stop_frequency : float) -> None:
-        """ This starts a frequency sweep on the device in the specified range."""
-        logger.debug("Starting frequency sweep from %s to %s", start_frequency, stop_frequency)
+    def start_frequency_sweep(self, start_frequency : str, stop_frequency : str) -> None:
+        """ This starts a frequency sweep on the device in the specified range.
+        
+        Args:
+            start_frequency (str): The start frequency in MHz.
+            stop_frequency (str): The stop frequency in MHz.
+        """
+        FREQUENCY_STEP = 50000 # Hz
+        MIN_FREQUENCY = 35e6 # Hz
+        MAX_FREQUENCY = 300e6 # Hz
+
+        try:
+            start_frequency = float(start_frequency) * 1e6
+            stop_frequency = float(stop_frequency) * 1e6
+        except ValueError:
+            error = "Could not start frequency sweep. Start and stop frequency must be floats"
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+
+        if start_frequency > stop_frequency:
+            error = "Could not start frequency sweep. Start frequency must be smaller than stop frequency"
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+        
+        if start_frequency < 0 or stop_frequency < 0:
+            error = "Could not start frequency sweep. Start and stop frequency must be positive"
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+        
+        if start_frequency < MIN_FREQUENCY or stop_frequency > MAX_FREQUENCY:
+            error = "Could not start frequency sweep. Start and stop frequency must be between %s and %s MHz" % (MIN_FREQUENCY / 1e6, MAX_FREQUENCY / 1e6)
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+
+        logger.debug("Starting frequency sweep from %s to %s with step size %s", start_frequency, stop_frequency, FREQUENCY_STEP)
         # We create the frequency sweep spinner dialog
         self.module.model.clear_data_points()
         self.module.view.create_frequency_sweep_spinner_dialog()
-        # Print the command 'f <start> <stop>' to the serial connection
+        # Print the command 'f<start>f<stop>' to the serial connection
         try:
-            command = "f %s %s" % (start_frequency, stop_frequency)
+            command = "f%sf%sf%s" % (start_frequency, stop_frequency, FREQUENCY_STEP)
             self.module.model.serial.write(command.encode('utf-8'))
         except AttributeError:
             logger.error("Could not start frequency sweep. No device connected.")
+            self.module.view.frequency_sweep_spinner.hide()
 
 
     def on_ready_read(self) -> None:
