@@ -121,6 +121,14 @@ class AutoTMController(ModuleController):
     def calculate_calibration(self) -> None:
         """This method is called when the calculate calibration button is pressed.
         It calculates the calibration from the short, open and calibration data points.
+
+        @TODO: Make calibration useful. Right now the calibration does not work for the probe coils. It completly messes up the S11 data.
+        For 50 Ohm reference loads the calibration makes the S11 data usable - one then gets a flat line at -50 dB.
+        The problem is probably two things:
+        1. The ideal values for open, short and load  should be measured with a VNA and then be loaded for the calibration. 
+        The ideal values are probably not -1, 1 and 0 but will also show frequency dependent behaviour.
+        2 The AD8302 chip only returns the absolute value of the phase. One would probably need to calculate the phase with various algorithms found in the literature.
+        Though Im not sure if these proposed algorithms would work for the AD8302 chip.
         """
         logger.debug("Calculating calibration")
         # First we check if the short and open calibration data points are available
@@ -143,26 +151,40 @@ class AutoTMController(ModuleController):
         measured_gamma_open = self.module.model.open_calibration.gamma
         measured_gamma_load = self.module.model.load_calibration.gamma
 
-        e_00s = []
-        e11s = []
-        delta_es = []
+        E_Ds = []
+        E_Ss = []
+        E_ts = []
         for gamma_s, gamma_o, gamma_l in zip(measured_gamma_short, measured_gamma_open, measured_gamma_load):
-            A = np.array([
-                [1, ideal_gamma_short * gamma_s, -ideal_gamma_short],
-                [1, ideal_gamma_open * gamma_o, -ideal_gamma_open],
-                [1, ideal_gamma_load * gamma_l, -ideal_gamma_load]
-            ])
+            # This is the solution from 
+            # A = np.array([
+            #      [1, ideal_gamma_short * gamma_s, -ideal_gamma_short],
+            #      [1, ideal_gamma_open * gamma_o, -ideal_gamma_open],
+            #      [1, ideal_gamma_load * gamma_l, -ideal_gamma_load]
+            #  ])
 
-            B = np.array([gamma_s, gamma_o, gamma_l])
+            # B = np.array([gamma_s, gamma_o, gamma_l])
 
             # Solve the system
-            e_00, e11, delta_e = np.linalg.lstsq(A, B, rcond=None)[0]
+            # e_00, e11, delta_e = np.linalg.lstsq(A, B, rcond=None)[0]
 
-            e_00s.append(e_00)
-            e11s.append(e11)
-            delta_es.append(delta_e)
+            E_D = gamma_l
+            E_ = (2 * gamma_l - (gamma_s  + gamma_o)) / (gamma_s - gamma_o)
+            E_S = (2 * (gamma_o + gamma_l) * (gamma_s + gamma_l)) / (gamma_s - gamma_o)
 
-        self.module.model.calibration = (e_00s, e11s, delta_es)
+            E_Ds.append(E_D)
+            E_Ss.append(E_S)
+            E_ts.append(E_)
+            # e_00 = gamma_l # Because here the reflection coefficient should be 0
+
+            # e11 = (gamma_o + gamma_o - 2 * e_00) / (gamma_o - gamma_s)
+
+            # delta_e = -gamma_o + gamma_o* e11 + e_00
+
+            # e_00s.append(e_00)
+            # e11s.append(e11)
+            # delta_es.append(delta_e)
+
+        self.module.model.calibration = (E_Ds, E_Ss, E_ts)
 
     def export_calibration(self, filename: str) -> None:
         """This method is called when the export calibration button is pressed.

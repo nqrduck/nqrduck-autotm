@@ -40,7 +40,12 @@ class S11Data:
     @property
     def gamma(self):
         """Complex reflection coefficient"""
-        return map(cmath.rect, (10 ** (-self.return_loss_db / 20), self.phase_rad))
+        if len(self.return_loss_db) != len(self.phase_rad):
+            raise ValueError("return_loss_db and phase_rad must be the same length")
+
+        return [cmath.rect(10 ** (-loss_db / 20), phase_rad) for loss_db, phase_rad in zip(self.return_loss_db, self.phase_rad)]
+
+
     
     def to_json(self):
         return {
@@ -72,6 +77,7 @@ class AutoTMModel(ModuleModel):
         super().__init__(module)
         self.data_points = []
         self.active_calibration = None
+        self.calibration = None
 
     @property
     def available_devices(self):

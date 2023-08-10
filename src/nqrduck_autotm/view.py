@@ -126,27 +126,48 @@ class AutoTMView(ModuleView):
         
         Args:
             data_points (list): List of data points to plot. 
+
+        @TODO: implement proper calibration. See the controller class for more information. 
         """
         frequency = data.frequency
         return_loss_db = data.return_loss_db
         phase = data.phase_deg
 
         gamma = data.gamma
-        # Calibration test:
-        #calibration = self.module.model.calibration
-        #e_00 = calibration[0]
-        #e11 = calibration[1]
-        #delta_e = calibration[2]
+        # Plot complex reflection coefficient
+        """ import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        ax.plot([g.real for g in gamma], [g.imag for g in gamma])
+        ax.set_aspect('equal')
+        ax.grid(True)
+        ax.set_title("Complex reflection coefficient")
+        ax.set_xlabel("Real")
+        ax.set_ylabel("Imaginary")
+        plt.show()
+         """
+        
+        magnitude_ax = self._ui_form.S11Plot.canvas.ax
+        # @ TODO: implement proper calibration
+        if self.module.model.calibration is not None:
+            # Calibration test:
+            import cmath
+            calibration = self.module.model.calibration
+            E_D = calibration[0]
+            E_S = calibration[1]
+            E_t = calibration[2]
 
-        #y_corr = [(data_point - e_00[i]) / (data_point * e11[i] - delta_e[i]) for i, data_point in enumerate(y)]
-        #import numpy as np
-        #y = [data_point[1] for data_point in self.module.model.data_points]
-        #open_calibration = [data_point[1] for data_point in self.module.model.open_calibration]
-        #load_calibration = [data_point[1] for data_point in self.module.model.load_calibration]
-        #short_calibration = [data_point[1] for data_point in self.module.model.short_calibration]
-
-        #y_corr = np.array(y) - np.array(load_calibration)
-        #y_corr = y_corr - np.mean(y_corr)
+            # gamma_corr = [(data_point - e_00[i]) / (data_point * e11[i] - delta_e[i]) for i, data_point in enumerate(gamma)]
+            gamma_corr = [(data_point - E_D[i]) / (E_S[i] * (data_point - E_D[i]) + E_t[i]) for i, data_point in enumerate(gamma)]
+            """ fig, ax = plt.subplots()
+            ax.plot([g.real for g in gamma_corr], [g.imag for g in gamma_corr])
+            ax.set_aspect('equal')
+            ax.grid(True)
+            ax.set_title("Complex reflection coefficient")
+            ax.set_xlabel("Real")
+            ax.set_ylabel("Imaginary")
+            plt.show() """
+            return_loss_db_corr = [-20 * cmath.log10(abs(g + 1e-12))  for g in gamma_corr]
+            magnitude_ax.plot(frequency, return_loss_db_corr, color="red")
 
         phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
         phase_ax.set_ylabel("Phase (deg)")
@@ -154,7 +175,7 @@ class AutoTMView(ModuleView):
         phase_ax.set_ylim(-180, 180)
         phase_ax.invert_yaxis()
 
-        magnitude_ax = self._ui_form.S11Plot.canvas.ax
+        
         magnitude_ax.clear()
         magnitude_ax.set_xlabel("Frequency (MHz)")
         magnitude_ax.set_ylabel("S11 (dB)")
