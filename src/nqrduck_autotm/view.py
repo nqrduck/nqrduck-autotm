@@ -44,6 +44,12 @@ class AutoTMView(ModuleView):
             self._ui_form.stopEdit.text()
         ))
 
+        # On clicking of the setvoltagesButton call the set_voltages method
+        self._ui_form.setvoltagesButton.clicked.connect(lambda: self.module.controller.set_voltages(
+            self._ui_form.tuningBox.text(),
+            self._ui_form.matchingBox.text()
+        ))
+
         # On clicking of the calibration button call the on_calibration_button_clicked method
         self._ui_form.calibrationButton.clicked.connect(self.on_calibration_button_clicked)
 
@@ -177,8 +183,6 @@ class AutoTMView(ModuleView):
         phase_ax.set_ylim(-180, 180)
         phase_ax.invert_yaxis()
 
-        
-        
         magnitude_ax.set_xlabel("Frequency (MHz)")
         magnitude_ax.set_ylabel("S11 (dB)")
         magnitude_ax.set_title("S11")

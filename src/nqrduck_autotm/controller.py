@@ -274,3 +274,41 @@ class AutoTMController(ModuleController):
             self.module.model.short_calibration = S11Data.from_json(data["short"])
             self.module.model.open_calibration = S11Data.from_json(data["open"])
             self.module.model.load_calibration = S11Data.from_json(data["load"])
+
+    def set_voltages(self, tuning_voltage : str, matching_voltage : str) -> None:
+        """This method is called when the set voltages button is pressed.
+        It writes the specified tuning and matching voltage to the serial connection.
+        
+        Args:
+            tuning_voltage (str): The tuning voltage in V.
+            matching_voltage (str): The matching voltage in V.
+        """
+        logger.debug("Setting voltages")
+        MAX_VOLTAGE = 5 # V
+        try:
+            tuning_voltage = float(tuning_voltage)
+            matching_voltage = float(matching_voltage)
+        except ValueError:
+            error = "Could not set voltages. Tuning and matching voltage must be floats"
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+        
+        if tuning_voltage < 0 or matching_voltage < 0:
+            error = "Could not set voltages. Tuning and matching voltage must be positive"
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+        
+        if tuning_voltage > MAX_VOLTAGE or matching_voltage > MAX_VOLTAGE:
+            error = "Could not set voltages. Tuning and matching voltage must be between 0 and 5 V"
+            logger.error(error)
+            self.module.view.add_info_text(error)
+            return
+        
+        logger.debug("Setting tuning voltage to %s V and matching voltage to %s V", tuning_voltage, matching_voltage)
+        try:
+            command = "v%sv%s" % (matching_voltage, tuning_voltage)
+            self.module.model.serial.write(command.encode('utf-8'))
+        except AttributeError:
+            logger.error("Could not set voltages. No device connected.")
