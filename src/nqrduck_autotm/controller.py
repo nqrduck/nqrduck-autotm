@@ -39,10 +39,12 @@ class AutoTMController(ModuleController):
 
     def start_frequency_sweep(self, start_frequency : str, stop_frequency : str) -> None:
         """ This starts a frequency sweep on the device in the specified range.
+        The minimum start and stop frequency are specific to the AD4351 based frequency generator.
         
         Args:
             start_frequency (str): The start frequency in MHz.
             stop_frequency (str): The stop frequency in MHz.
+
         """
         FREQUENCY_STEP = 50000 # Hz
         MIN_FREQUENCY = 35e6 # Hz

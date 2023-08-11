@@ -11,7 +11,8 @@ class S11Data:
 
     # Conversion factors - the data is generally sent and received in mV
     # These values are used to convert the data to dB and degrees
-    CENTER_POINT = 900 # mV
+    CENTER_POINT_MAGNITUDE = 900 # mV
+    CENTER_POINT_PHASE = 1800 # mV
     MAGNITUDE_SLOPE = 30 # dB/mV
     PHASE_SLOPE = 10 # deg/mV
 
@@ -27,11 +28,12 @@ class S11Data:
     
     @property
     def return_loss_db(self):
-        return (self.return_loss_mv - self.CENTER_POINT) / self.MAGNITUDE_SLOPE
+        return (self.return_loss_mv - self.CENTER_POINT_MAGNITUDE) / self.MAGNITUDE_SLOPE
 
     @property
     def phase_deg(self):
-        return (self.phase_mv - self.CENTER_POINT) / self.PHASE_SLOPE
+        """Returns the absolute value of the phase in degrees"""
+        return (self.phase_mv - self.CENTER_POINT_PHASE) / self.PHASE_SLOPE
     
     @property
     def phase_rad(self):

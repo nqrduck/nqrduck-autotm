@@ -172,7 +172,7 @@ class AutoTMView(ModuleView):
 
         phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
         phase_ax.clear()
-        phase_ax.set_ylabel("Phase (deg)")
+        phase_ax.set_ylabel("|Phase (deg)|")
         phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         phase_ax.set_ylim(-180, 180)
         phase_ax.invert_yaxis()
