@@ -3,7 +3,17 @@ from datetime import datetime
 from pathlib import Path
 from PyQt6.QtGui import QMovie
 from PyQt6.QtSerialPort import QSerialPort
-from PyQt6.QtWidgets import QWidget, QLabel, QVBoxLayout, QApplication, QHBoxLayout, QLineEdit, QPushButton, QDialog, QFileDialog
+from PyQt6.QtWidgets import (
+    QWidget,
+    QLabel,
+    QVBoxLayout,
+    QApplication,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+    QDialog,
+    QFileDialog,
+)
 from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
@@ -13,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 
 class AutoTMView(ModuleView):
-
     def __init__(self, module):
         super().__init__(module)
 
@@ -26,57 +35,69 @@ class AutoTMView(ModuleView):
         self._ui_form.connectButton.setDisabled(True)
 
         # On clicking of the refresh button scan for available usb devices
-        self._ui_form.refreshButton.clicked.connect(
-            self.module.controller.find_devices)
+        self._ui_form.refreshButton.clicked.connect(self.module.controller.find_devices)
 
         # Connect the available devices changed signal to the on_available_devices_changed slot
         self.module.model.available_devices_changed.connect(
-            self.on_available_devices_changed)
+            self.on_available_devices_changed
+        )
 
         # Connect the serial changed signal to the on_serial_changed slot
         self.module.model.serial_changed.connect(self.on_serial_changed)
 
         # On clicking of the connect button call the connect method
-        self._ui_form.connectButton.clicked.connect(
-            self.on_connect_button_clicked)
+        self._ui_form.connectButton.clicked.connect(self.on_connect_button_clicked)
 
         # On clicking of the start button call the start_frequency_sweep method
-        self._ui_form.startButton.clicked.connect(lambda: self.module.controller.start_frequency_sweep(
-            self._ui_form.startEdit.text(),
-            self._ui_form.stopEdit.text()
-        ))
+        self._ui_form.startButton.clicked.connect(
+            lambda: self.module.controller.start_frequency_sweep(
+                self._ui_form.startEdit.text(), self._ui_form.stopEdit.text()
+            )
+        )
+
+        # On clicking of the generateLUTButton call the generate_lut method
+        self._ui_form.generateLUTButton.clicked.connect(
+            lambda: self.module.controller.generate_lut(
+                self._ui_form.startfrequencyBox.text(),
+                self._ui_form.stopfrequencyBox.text(),
+                self._ui_form.frequencystepBox.text(),
+                self._ui_form.resolutionBox.text(),
+            )
+        )
 
         # On clicking of the setvoltagesButton call the set_voltages method
-        self._ui_form.setvoltagesButton.clicked.connect(lambda: self.module.controller.set_voltages(
-            self._ui_form.tuningBox.text(),
-            self._ui_form.matchingBox.text()
-        ))
+        self._ui_form.setvoltagesButton.clicked.connect(
+            lambda: self.module.controller.set_voltages(
+                self._ui_form.tuningBox.text(), self._ui_form.matchingBox.text()
+            )
+        )
 
         # On clicking of the calibration button call the on_calibration_button_clicked method
         self._ui_form.calibrationButton.clicked.connect(
-            self.on_calibration_button_clicked)
+            self.on_calibration_button_clicked
+        )
 
         # Connect the measurement finished signal to the plot_measurement slot
         self.module.model.measurement_finished.connect(self.plot_measurement)
 
         # Add a vertical layout to the info box
         self._ui_form.scrollAreaWidgetContents.setLayout(QVBoxLayout())
-        self._ui_form.scrollAreaWidgetContents.layout(
-        ).setAlignment(Qt.AlignmentFlag.AlignTop)
+        self._ui_form.scrollAreaWidgetContents.layout().setAlignment(
+            Qt.AlignmentFlag.AlignTop
+        )
 
         self.init_plot()
         self.init_labels()
 
     def init_labels(self) -> None:
-        """Makes some of the labels bold for better readability. 
-        """
+        """Makes some of the labels bold for better readability."""
         self._ui_form.titleconnectionLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titlefrequencyLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titletypeLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titleinfoLabel.setStyleSheet("font-weight: bold;")
 
     def init_plot(self) -> None:
-        """Initialize the S11 plot. """
+        """Initialize the S11 plot."""
         ax = self._ui_form.S11Plot.canvas.ax
         ax.set_xlabel("Frequency (MHz)")
         ax.set_ylabel("S11 (dB)")
@@ -87,7 +108,7 @@ class AutoTMView(ModuleView):
         self._ui_form.S11Plot.canvas.draw()
 
     def on_calibration_button_clicked(self) -> None:
-        """This method is called when the calibration button is clicked. 
+        """This method is called when the calibration button is clicked.
         It opens the calibration window.
         """
         logger.debug("Calibration button clicked")
@@ -96,7 +117,7 @@ class AutoTMView(ModuleView):
 
     @pyqtSlot(list)
     def on_available_devices_changed(self, available_devices: list) -> None:
-        """Update the available devices list in the view. """
+        """Update the available devices list in the view."""
         logger.debug("Updating available devices list")
         self._ui_form.portBox.clear()
         self._ui_form.portBox.addItems(available_devices)
@@ -109,7 +130,7 @@ class AutoTMView(ModuleView):
 
     @pyqtSlot()
     def on_connect_button_clicked(self) -> None:
-        """This method is called when the connect button is clicked. 
+        """This method is called when the connect button is clicked.
         It calls the connect method of the controller with the currently selected device.
         """
         logger.debug("Connect button clicked")
@@ -118,7 +139,7 @@ class AutoTMView(ModuleView):
 
     @pyqtSlot(QSerialPort)
     def on_serial_changed(self, serial: QSerialPort) -> None:
-        """Update the serial 'connectionLabel' according to the current serial connection. 
+        """Update the serial 'connectionLabel' according to the current serial connection.
 
         Args:
             serial (serial.Serial): The current serial connection."""
@@ -131,12 +152,12 @@ class AutoTMView(ModuleView):
         logger.debug("Updated serial connection label")
 
     def plot_measurement(self, data: "S11Data") -> None:
-        """Update the S11 plot with the current data points. 
+        """Update the S11 plot with the current data points.
 
         Args:
-            data_points (list): List of data points to plot. 
+            data_points (list): List of data points to plot.
 
-        @TODO: implement proper calibration. See the controller class for more information. 
+        @TODO: implement proper calibration. See the controller class for more information.
         """
         frequency = data.frequency
         return_loss_db = data.return_loss_db
@@ -165,14 +186,17 @@ class AutoTMView(ModuleView):
         if self.module.model.calibration is not None:
             # Calibration test:
             import cmath
+
             calibration = self.module.model.calibration
             E_D = calibration[0]
             E_S = calibration[1]
             E_t = calibration[2]
 
             # gamma_corr = [(data_point - e_00[i]) / (data_point * e11[i] - delta_e[i]) for i, data_point in enumerate(gamma)]
-            gamma_corr = [(data_point - E_D[i]) / (E_S[i] * (data_point - E_D[i]) + E_t[i])
-                          for i, data_point in enumerate(gamma)]
+            gamma_corr = [
+                (data_point - E_D[i]) / (E_S[i] * (data_point - E_D[i]) + E_t[i])
+                for i, data_point in enumerate(gamma)
+            ]
             """ fig, ax = plt.subplots()
             ax.plot([g.real for g in gamma_corr], [g.imag for g in gamma_corr])
             ax.set_aspect('equal')
@@ -181,8 +205,9 @@ class AutoTMView(ModuleView):
             ax.set_xlabel("Real")
             ax.set_ylabel("Imaginary")
             plt.show() """
-            return_loss_db_corr = [-20 *
-                                   cmath.log10(abs(g + 1e-12)) for g in gamma_corr]
+            return_loss_db_corr = [
+                -20 * cmath.log10(abs(g + 1e-12)) for g in gamma_corr
+            ]
             magnitude_ax.plot(frequency, return_loss_db_corr, color="red")
 
         phase_ax.set_ylabel("|Phase (deg)|")
@@ -204,10 +229,10 @@ class AutoTMView(ModuleView):
         QApplication.processEvents()
 
     def add_info_text(self, text: str) -> None:
-        """ Adds text to the info text box. 
+        """Adds text to the info text box.
 
         Args:
-            text (str): Text to add to the info text box. 
+            text (str): Text to add to the info text box.
         """
         # Add a timestamp to the text
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -216,13 +241,14 @@ class AutoTMView(ModuleView):
         text_label.setStyleSheet("font-size: 25px;")
         self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
         self._ui_form.scrollArea.verticalScrollBar().setValue(
-            self._ui_form.scrollArea.verticalScrollBar().maximum())
+            self._ui_form.scrollArea.verticalScrollBar().maximum()
+        )
 
     def add_error_text(self, text: str) -> None:
-        """ Adds text to the error text box. 
+        """Adds text to the error text box.
 
         Args:
-            text (str): Text to add to the error text box. 
+            text (str): Text to add to the error text box.
         """
         # Add a timestamp to the text
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -231,10 +257,11 @@ class AutoTMView(ModuleView):
         text_label.setStyleSheet("font-size: 25px; color: red;")
         self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
         self._ui_form.scrollArea.verticalScrollBar().setValue(
-            self._ui_form.scrollArea.verticalScrollBar().maximum())
+            self._ui_form.scrollArea.verticalScrollBar().maximum()
+        )
 
     def create_frequency_sweep_spinner_dialog(self) -> None:
-        """Creates a frequency sweep spinner dialog. """
+        """Creates a frequency sweep spinner dialog."""
         self.frequency_sweep_spinner = self.FrequencySweepSpinner()
         self.frequency_sweep_spinner.show()
 
@@ -259,7 +286,6 @@ class AutoTMView(ModuleView):
             self.spinner_movie.start()
 
     class CalibrationWindow(QWidget):
-
         def __init__(self, module, parent=None):
             super().__init__()
             self.module = module
@@ -290,10 +316,11 @@ class AutoTMView(ModuleView):
             # Add vertical layout for short calibration
             short_layout = QVBoxLayout()
             short_button = QPushButton("Short")
-            short_button.clicked.connect(lambda: self.module.controller.on_short_calibration(
-                float(start_edit.text()),
-                float(stop_edit.text())
-            ))
+            short_button.clicked.connect(
+                lambda: self.module.controller.on_short_calibration(
+                    float(start_edit.text()), float(stop_edit.text())
+                )
+            )
             # Short plot widget
             self.short_plot = MplWidget()
             short_layout.addWidget(self.short_plot)
@@ -303,10 +330,11 @@ class AutoTMView(ModuleView):
             # Add vertical layout for open calibration
             open_layout = QVBoxLayout()
             open_button = QPushButton("Open")
-            open_button.clicked.connect(lambda: self.module.controller.on_open_calibration(
-                float(start_edit.text()),
-                float(stop_edit.text())
-            ))
+            open_button.clicked.connect(
+                lambda: self.module.controller.on_open_calibration(
+                    float(start_edit.text()), float(stop_edit.text())
+                )
+            )
             # Open plot widget
             self.open_plot = MplWidget()
             open_layout.addWidget(self.open_plot)
@@ -316,10 +344,11 @@ class AutoTMView(ModuleView):
             # Add vertical layout for load calibration
             load_layout = QVBoxLayout()
             load_button = QPushButton("Load")
-            load_button.clicked.connect(lambda: self.module.controller.on_load_calibration(
-                float(start_edit.text()),
-                float(stop_edit.text())
-            ))
+            load_button.clicked.connect(
+                lambda: self.module.controller.on_load_calibration(
+                    float(start_edit.text()), float(stop_edit.text())
+                )
+            )
             # Load plot widget
             self.load_plot = MplWidget()
             load_layout.addWidget(self.load_plot)
@@ -347,26 +376,28 @@ class AutoTMView(ModuleView):
 
             # Connect the calibration finished signals to the on_calibration_finished slot
             self.module.model.short_calibration_finished.connect(
-                self.on_short_calibration_finished)
+                self.on_short_calibration_finished
+            )
             self.module.model.open_calibration_finished.connect(
-                self.on_open_calibration_finished)
+                self.on_open_calibration_finished
+            )
             self.module.model.load_calibration_finished.connect(
-                self.on_load_calibration_finished)
+                self.on_load_calibration_finished
+            )
 
         def on_short_calibration_finished(self, short_calibration: "S11Data") -> None:
-            self.on_calibration_finished(
-                "short", self.short_plot, short_calibration)
+            self.on_calibration_finished("short", self.short_plot, short_calibration)
 
         def on_open_calibration_finished(self, open_calibration: "S11Data") -> None:
-            self.on_calibration_finished(
-                "open", self.open_plot, open_calibration)
+            self.on_calibration_finished("open", self.open_plot, open_calibration)
 
         def on_load_calibration_finished(self, load_calibration: "S11Data") -> None:
-            self.on_calibration_finished(
-                "load", self.load_plot, load_calibration)
+            self.on_calibration_finished("load", self.load_plot, load_calibration)
 
-        def on_calibration_finished(self, type: str, widget: MplWidget, data: "S11Data") -> None:
-            """This method is called when a calibration has finished. 
+        def on_calibration_finished(
+            self, type: str, widget: MplWidget, data: "S11Data"
+        ) -> None:
+            """This method is called when a calibration has finished.
             It plots the calibration data on the given widget.
             """
             frequency = data.frequency
@@ -403,7 +434,7 @@ class AutoTMView(ModuleView):
             self.module.controller.export_calibration(filename)
 
         def on_import_button_clicked(self) -> None:
-            """This method is called when the import button is clicked. """
+            """This method is called when the import button is clicked."""
             filedialog = QFileDialog()
             filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
             filedialog.setNameFilter("calibration files (*.cal)")
@@ -414,7 +445,7 @@ class AutoTMView(ModuleView):
             self.module.controller.import_calibration(filename)
 
         def on_apply_button_clicked(self) -> None:
-            """This method is called when the apply button is clicked. """
+            """This method is called when the apply button is clicked."""
             self.module.controller.calculate_calibration()
             # Close the calibration window
             self.close()
