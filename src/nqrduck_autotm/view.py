@@ -154,6 +154,10 @@ class AutoTMView(ModuleView):
         
         magnitude_ax = self._ui_form.S11Plot.canvas.ax
         magnitude_ax.clear()
+
+        phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
+        phase_ax.clear()
+
         # @ TODO: implement proper calibration
         if self.module.model.calibration is not None:
             # Calibration test:
@@ -176,8 +180,20 @@ class AutoTMView(ModuleView):
             return_loss_db_corr = [-20 * cmath.log10(abs(g + 1e-12))  for g in gamma_corr]
             magnitude_ax.plot(frequency, return_loss_db_corr, color="red")
 
-        phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
-        phase_ax.clear()
+            """  open_calibration = self.module.model.open_calibration
+            short_calibration = self.module.model.short_calibration
+            load_calibration = self.module.model.load_calibration
+
+            phase_difference = short_calibration.phase_deg - open_calibration.phase_deg
+            phase = (phase - open_calibration.phase_deg) / phase_difference
+
+            amplitude_difference = open_calibration.return_loss_db - load_calibration.return_loss_db
+            amplitude = (return_loss_db - open_calibration.return_loss_db) / amplitude_difference
+
+            magnitude_ax.plot(frequency, amplitude, color="green")
+            phase_ax.plot(frequency, phase, color="orange", linestyle="--") """
+
+       
         phase_ax.set_ylabel("|Phase (deg)|")
         phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         phase_ax.set_ylim(-180, 180)
