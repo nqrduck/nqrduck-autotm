@@ -3,7 +3,7 @@ import numpy as np
 import json
 from serial.tools.list_ports import comports
 from PyQt6 import QtSerialPort
-from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot
 from nqrduck.module.module_controller import ModuleController
 from .model import S11Data
 
@@ -51,6 +51,8 @@ class AutoTMController(ModuleController):
         MAX_FREQUENCY = 300e6 # Hz
 
         try:
+            start_frequence = start_frequency.replace(",", ".")
+            stop_frequency = stop_frequency.replace(",", ".")
             start_frequency = float(start_frequency) * 1e6
             stop_frequency = float(stop_frequency) * 1e6
         except ValueError:
@@ -286,6 +288,8 @@ class AutoTMController(ModuleController):
         logger.debug("Setting voltages")
         MAX_VOLTAGE = 5 # V
         try:
+            tuning_voltage = tuning_voltage.replace(",", ".")
+            matching_voltage = matching_voltage.replace(",", ".")
             tuning_voltage = float(tuning_voltage)
             matching_voltage = float(matching_voltage)
         except ValueError:
