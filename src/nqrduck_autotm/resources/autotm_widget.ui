@@ -26,7 +26,6 @@
       <widget class="QLabel" name="titleconnectionLabel">
        <property name="font">
         <font>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -81,7 +80,6 @@
       <widget class="QLabel" name="titletypeLabel">
        <property name="font">
         <font>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -93,13 +91,13 @@
      <item>
       <widget class="QTabWidget" name="typeTab">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="mechTab">
         <attribute name="title">
          <string>Mechanical</string>
         </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout">
+        <layout class="QVBoxLayout" name="verticalLayout" stretch="0">
          <item>
           <widget class="QPushButton" name="pushButton">
            <property name="text">
@@ -113,7 +111,7 @@
         <attribute name="title">
          <string>Electrical</string>
         </attribute>
-        <layout class="QGridLayout" name="gridLayout_3">
+        <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,1">
          <item row="1" column="1">
           <widget class="QDoubleSpinBox" name="matchingBox"/>
          </item>
@@ -159,7 +157,6 @@
       <widget class="QLabel" name="titlefrequencyLabel">
        <property name="font">
         <font>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -231,7 +228,6 @@
       <widget class="QLabel" name="titleinfoLabel">
        <property name="font">
         <font>
-         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -250,8 +246,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>273</width>
-          <height>83</height>
+          <width>297</width>
+          <height>169</height>
          </rect>
         </property>
        </widget>

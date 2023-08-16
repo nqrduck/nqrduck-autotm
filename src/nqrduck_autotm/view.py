@@ -123,7 +123,7 @@ class AutoTMView(ModuleView):
         Args:
             serial (serial.Serial): The current serial connection."""
         logger.debug("Updating serial connection label")
-        if serial.isOpen():
+        if serial:
             self._ui_form.connectionLabel.setText(serial.portName())
             self.add_info_text("Connected to device %s" % serial.portName())
         else:
@@ -155,8 +155,12 @@ class AutoTMView(ModuleView):
         plt.show()
          """
 
+        self._ui_form.S11Plot.canvas.ax.clear()
         magnitude_ax = self._ui_form.S11Plot.canvas.ax
         magnitude_ax.clear()
+        phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
+        phase_ax.clear()
+
         # @ TODO: implement proper calibration
         if self.module.model.calibration is not None:
             # Calibration test:
@@ -181,8 +185,6 @@ class AutoTMView(ModuleView):
                                    cmath.log10(abs(g + 1e-12)) for g in gamma_corr]
             magnitude_ax.plot(frequency, return_loss_db_corr, color="red")
 
-        phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
-        phase_ax.clear()
         phase_ax.set_ylabel("|Phase (deg)|")
         phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         phase_ax.set_ylim(-180, 180)
