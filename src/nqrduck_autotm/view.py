@@ -19,7 +19,6 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
 )
 from PyQt6.QtCore import pyqtSlot, Qt
-from PyQt6.QtTest import QTest
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
 from .widget import Ui_Form
@@ -80,6 +79,12 @@ class AutoTMView(ModuleView):
 
         # On clicking of the calibration button call the on_calibration_button_clicked method
         self._ui_form.calibrationButton.clicked.connect(self.on_calibration_button_clicked)
+        
+        # On clicking of the switchpreampButton call the switch_preamp method
+        self._ui_form.switchpreampButton.clicked.connect(self.module.controller.switch_to_preamp)
+        
+        # On clicking of the switchATMButton call the switch_atm method
+        self._ui_form.switchATMButton.clicked.connect(self.module.controller.switch_to_atm)
 
         # Connect the measurement finished signal to the plot_measurement slot
         self.module.model.measurement_finished.connect(self.plot_measurement)
@@ -311,10 +316,6 @@ class AutoTMView(ModuleView):
                 tuning_voltage = str(self.module.model.LUT.data[frequency][1])
                 matching_voltage = str(self.module.model.LUT.data[frequency][0])
                 self.module.controller.set_voltages(tuning_voltage, matching_voltage)
-
-                # Wait for 0.5 seconds
-                QTest.qWait(500)
-                QApplication.processEvents()
 
     class CalibrationWindow(QWidget):
         def __init__(self, module, parent=None):

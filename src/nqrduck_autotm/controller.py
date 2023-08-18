@@ -2,8 +2,10 @@ import logging
 import numpy as np
 import json
 from serial.tools.list_ports import comports
+from PyQt6.QtTest import QTest
 from PyQt6 import QtSerialPort
-from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
+from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
 from .model import S11Data, LookupTable
 
@@ -93,12 +95,8 @@ class AutoTMController(ModuleController):
         self.module.model.clear_data_points()
         self.module.view.create_frequency_sweep_spinner_dialog()
         # Print the command 'f<start>f<stop>f<step>' to the serial connection
-        try:
-            command = "f%sf%sf%s" % (start_frequency, stop_frequency, FREQUENCY_STEP)
-            self.module.model.serial.write(command.encode("utf-8"))
-        except AttributeError:
-            logger.error("Could not start frequency sweep. No device connected.")
-            self.module.view.frequency_sweep_spinner.hide()
+        command = "f%sf%sf%s" % (start_frequency, stop_frequency, FREQUENCY_STEP)
+        self.send_command(command)
 
     def on_ready_read(self) -> None:
         """This method is called when data is received from the serial connection."""
@@ -166,7 +164,7 @@ class AutoTMController(ModuleController):
                     command = "s%s" % next_frequency
                     LUT.started_frequency = next_frequency
                     logger.debug("Starting next voltage sweep: %s", command)
-                    serial.write(command.encode("utf-8"))
+                    self.send_command(command)
 
     def on_short_calibration(self, start_frequency: float, stop_frequency: float) -> None:
         """This method is called when the short calibration button is pressed.
@@ -333,11 +331,9 @@ class AutoTMController(ModuleController):
             tuning_voltage,
             matching_voltage,
         )
-        try:
-            command = "v%sv%s" % (matching_voltage, tuning_voltage)
-            self.module.model.serial.write(command.encode("utf-8"))
-        except AttributeError:
-            logger.error("Could not set voltages. No device connected.")
+        
+        command = "v%sv%s" % (matching_voltage, tuning_voltage)
+        self.send_command(command)
 
     def generate_lut(
         self,
@@ -405,4 +401,38 @@ class AutoTMController(ModuleController):
 
         # We write the first command to the serial connection
         command = "s%s" % (start_frequency)
-        self.module.model.serial.write(command.encode("utf-8"))
+        self.send_command(command)
+        
+    def switch_to_preamp(self) -> None:
+        """ This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
+        This is the mode for either NQR or NMR measurements or if on wants to check the tuning of the probe coil on a network analyzer.
+        """
+        logger.debug("Switching to preamp")
+        self.send_command("cp")
+        
+        
+    def switch_to_atm(self) -> None:
+        """ This method is used to send the command 'ca' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'ATM. 
+        In this state the atm system can be used to measure the reflection coefficient of the probecoils.
+        """
+        logger.debug("Switching to atm")
+        self.send_command("ca")
+
+    def send_command(self, command : str) -> None:
+        """ This method is used to send a command to the active serial connection.
+        
+        Args:
+            command (str): The command that should be send to the atm system.
+        """
+        logger.debug("Sending command %s", command)
+        try:
+            self.module.model.serial.write(command.encode("utf-8"))
+            # Wait for 0.5 seconds
+            QTest.qWait(500)
+            # Make sure that the command is being send
+            QApplication.processEvents()
+        except AttributeError:
+            logger.error("Could not send command. No device connected.")
+            self.module.view.add_error_text("Could not send command. No device connected.")
+        
+    
