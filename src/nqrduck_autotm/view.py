@@ -34,6 +34,9 @@ class AutoTMView(ModuleView):
         self._ui_form = Ui_Form()
         self._ui_form.setupUi(self)
         self.widget = widget
+        
+        self.frequency_sweep_spinner = self.FrequencySweepSpinner()
+        self.frequency_sweep_spinner.hide()
 
         # Disable the connectButton while no devices are selected
         self._ui_form.connectButton.setDisabled(True)
@@ -85,6 +88,9 @@ class AutoTMView(ModuleView):
         
         # On clicking of the switchATMButton call the switch_atm method
         self._ui_form.switchATMButton.clicked.connect(self.module.controller.switch_to_atm)
+        
+        # On clicking of the homingButton call the homing method
+        self._ui_form.homingButton.clicked.connect(self.module.controller.homing)
 
         # Connect the measurement finished signal to the plot_measurement slot
         self.module.model.measurement_finished.connect(self.plot_measurement)

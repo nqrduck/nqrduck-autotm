@@ -49,9 +49,9 @@ class AutoTMController(ModuleController):
             stop_frequency (str): The stop frequency in MHz.
 
         """
-        FREQUENCY_STEP = 50000  # Hz
+        N_POINTS = 400
         MIN_FREQUENCY = 35e6  # Hz
-        MAX_FREQUENCY = 300e6  # Hz
+        MAX_FREQUENCY = 200e6  # Hz
 
         try:
             start_frequence = start_frequency.replace(",", ".")
@@ -85,17 +85,18 @@ class AutoTMController(ModuleController):
             self.module.view.add_info_text(error)
             return
 
+        frequency_step = (stop_frequency - start_frequency) / N_POINTS
         logger.debug(
             "Starting frequency sweep from %s to %s with step size %s",
             start_frequency,
             stop_frequency,
-            FREQUENCY_STEP,
+            frequency_step,
         )
         # We create the frequency sweep spinner dialog
         self.module.model.clear_data_points()
         self.module.view.create_frequency_sweep_spinner_dialog()
         # Print the command 'f<start>f<stop>f<step>' to the serial connection
-        command = "f%sf%sf%s" % (start_frequency, stop_frequency, FREQUENCY_STEP)
+        command = "f%sf%sf%s" % (start_frequency, stop_frequency, frequency_step)
         self.send_command(command)
 
     def on_ready_read(self) -> None:
@@ -434,5 +435,12 @@ class AutoTMController(ModuleController):
         except AttributeError:
             logger.error("Could not send command. No device connected.")
             self.module.view.add_error_text("Could not send command. No device connected.")
+            
+    def homing(self) -> None:
+        """ This method is used to send the command 'h' to the atm system. 
+        This command is used to home the stepper motors of the atm system.
+        """
+        logger.debug("Homing")
+        self.send_command("h")
         
     
