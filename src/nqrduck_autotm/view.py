@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 import time
+import cmath
 from pathlib import Path
 from PyQt6.QtGui import QMovie
 from PyQt6.QtSerialPort import QSerialPort
@@ -18,6 +19,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
 )
 from PyQt6.QtCore import pyqtSlot, Qt
+from PyQt6.QtTest import QTest
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
 from .widget import Ui_Form
@@ -106,6 +108,8 @@ class AutoTMView(ModuleView):
         ax.set_xlim(0, 100)
         ax.set_ylim(-100, 0)
         self._ui_form.S11Plot.canvas.draw()
+        
+        self.phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
 
     def on_calibration_button_clicked(self) -> None:
         """This method is called when the calibration button is clicked.
@@ -164,59 +168,43 @@ class AutoTMView(ModuleView):
         phase = data.phase_deg
 
         gamma = data.gamma
-        # Plot complex reflection coefficient
-        """ import matplotlib.pyplot as plt
-        fig, ax = plt.subplots()
-        ax.plot([g.real for g in gamma], [g.imag for g in gamma])
-        ax.set_aspect('equal')
-        ax.grid(True)
-        ax.set_title("Complex reflection coefficient")
-        ax.set_xlabel("Real")
-        ax.set_ylabel("Imaginary")
-        plt.show()
-         """
 
         self._ui_form.S11Plot.canvas.ax.clear()
+        
         magnitude_ax = self._ui_form.S11Plot.canvas.ax
         magnitude_ax.clear()
-        phase_ax = self._ui_form.S11Plot.canvas.ax.twinx()
-        phase_ax.clear()
 
-        # @ TODO: implement proper calibration
+        self.phase_ax.clear()
+        logger.debug("Shape of phase: %s", phase.shape)
+
+        # Calibration for visualization happens here.
         if self.module.model.calibration is not None:
-            # Calibration test:
-            import cmath
 
             calibration = self.module.model.calibration
-            E_D = calibration[0]
-            E_S = calibration[1]
-            E_t = calibration[2]
+            e_00 = calibration[0]
+            e11 = calibration[1]
+            delta_e = calibration[2]
 
-            # gamma_corr = [(data_point - e_00[i]) / (data_point * e11[i] - delta_e[i]) for i, data_point in enumerate(gamma)]
             gamma_corr = [
-                (data_point - E_D[i]) / (E_S[i] * (data_point - E_D[i]) + E_t[i]) for i, data_point in enumerate(gamma)
+                (data_point - e_00[i]) / (data_point * e11[i] - delta_e[i]) for i, data_point in enumerate(gamma)
             ]
-            """ fig, ax = plt.subplots()
-            ax.plot([g.real for g in gamma_corr], [g.imag for g in gamma_corr])
-            ax.set_aspect('equal')
-            ax.grid(True)
-            ax.set_title("Complex reflection coefficient")
-            ax.set_xlabel("Real")
-            ax.set_ylabel("Imaginary")
-            plt.show() """
+            
             return_loss_db_corr = [-20 * cmath.log10(abs(g + 1e-12)) for g in gamma_corr]
             magnitude_ax.plot(frequency, return_loss_db_corr, color="red")
+            
+        else: 
+            magnitude_ax.plot(frequency, return_loss_db, color="blue")
 
-        phase_ax.set_ylabel("|Phase (deg)|")
-        phase_ax.plot(frequency, phase, color="orange", linestyle="--")
-        phase_ax.set_ylim(-180, 180)
-        phase_ax.invert_yaxis()
+        self.phase_ax.set_ylabel("|Phase (deg)|")
+        self.phase_ax.plot(frequency, phase, color="orange", linestyle="--")
+        self.phase_ax.set_ylim(-180, 180)
+        self.phase_ax.invert_yaxis()
 
         magnitude_ax.set_xlabel("Frequency (MHz)")
         magnitude_ax.set_ylabel("S11 (dB)")
         magnitude_ax.set_title("S11")
         magnitude_ax.grid(True)
-        magnitude_ax.plot(frequency, return_loss_db, color="blue")
+
         # make the y axis go down instead of up
         magnitude_ax.invert_yaxis()
 
@@ -297,7 +285,7 @@ class AutoTMView(ModuleView):
             # Create table widget
             self.table_widget = QTableWidget()
             self.table_widget.setColumnCount(3)
-            self.table_widget.setHorizontalHeaderLabels(["Frequency (MHz)", "Tuning Voltage", "Matching Voltage"])
+            self.table_widget.setHorizontalHeaderLabels(["Frequency (MHz)", "Matching Voltage", "Tuning Voltage"])
             LUT = self.module.model.LUT
             for row, frequency in enumerate(LUT.data.keys()):
                 self.table_widget.insertRow(row)
@@ -320,11 +308,13 @@ class AutoTMView(ModuleView):
             One can then view the matching on a seperate VNA.
             """
             for frequency in self.module.model.LUT.data.keys():
-                tuning_voltage = str(self.module.model.LUT.data[frequency][0])
-                matching_voltage = str(self.module.model.LUT.data[frequency][1])
+                tuning_voltage = str(self.module.model.LUT.data[frequency][1])
+                matching_voltage = str(self.module.model.LUT.data[frequency][0])
                 self.module.controller.set_voltages(tuning_voltage, matching_voltage)
-                # Evil
-                time.sleep(0.5)
+
+                # Wait for 0.5 seconds
+                QTest.qWait(500)
+                QApplication.processEvents()
 
     class CalibrationWindow(QWidget):
         def __init__(self, module, parent=None):
@@ -358,7 +348,7 @@ class AutoTMView(ModuleView):
             short_layout = QVBoxLayout()
             short_button = QPushButton("Short")
             short_button.clicked.connect(
-                lambda: self.module.controller.on_short_calibration(float(start_edit.text()), float(stop_edit.text()))
+                lambda: self.module.controller.on_short_calibration(start_edit.text(), stop_edit.text())
             )
             # Short plot widget
             self.short_plot = MplWidget()
@@ -370,7 +360,7 @@ class AutoTMView(ModuleView):
             open_layout = QVBoxLayout()
             open_button = QPushButton("Open")
             open_button.clicked.connect(
-                lambda: self.module.controller.on_open_calibration(float(start_edit.text()), float(stop_edit.text()))
+                lambda: self.module.controller.on_open_calibration(start_edit.text(), stop_edit.text())
             )
             # Open plot widget
             self.open_plot = MplWidget()
@@ -382,7 +372,7 @@ class AutoTMView(ModuleView):
             load_layout = QVBoxLayout()
             load_button = QPushButton("Load")
             load_button.clicked.connect(
-                lambda: self.module.controller.on_load_calibration(float(start_edit.text()), float(stop_edit.text()))
+                lambda: self.module.controller.on_load_calibration(start_edit.text(), stop_edit.text())
             )
             # Load plot widget
             self.load_plot = MplWidget()

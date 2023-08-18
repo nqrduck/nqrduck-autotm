@@ -12,7 +12,7 @@ class S11Data:
     # Conversion factors - the data is generally sent and received in mV
     # These values are used to convert the data to dB and degrees
     CENTER_POINT_MAGNITUDE = 900  # mV
-    CENTER_POINT_PHASE = 1800  # mV
+    CENTER_POINT_PHASE = 900  # mV
     MAGNITUDE_SLOPE = 30  # dB/mV
     PHASE_SLOPE = 10  # deg/mV
 
