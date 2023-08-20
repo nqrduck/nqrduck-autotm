@@ -1,9 +1,6 @@
 import logging
 from datetime import datetime
-import time
 import cmath
-from pathlib import Path
-from PyQt6.QtGui import QMovie
 from PyQt6.QtSerialPort import QSerialPort
 from PyQt6.QtWidgets import (
     QWidget,
@@ -21,6 +18,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
+from nqrduck.assets.animations import DuckAnimations
 from .widget import Ui_Form
 
 logger = logging.getLogger(__name__)
@@ -273,8 +271,8 @@ class AutoTMView(ModuleView):
             self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-            path = Path(__file__).parent
-            self.spinner_movie = QMovie(str(path / "resources/duck_kick.gif"))
+            
+            self.spinner_movie = DuckAnimations.DuckKick128x128()
             self.spinner_label = QLabel(self)
             self.spinner_label.setMovie(self.spinner_movie)
 
