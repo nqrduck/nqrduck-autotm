@@ -266,3 +266,21 @@ class AutoTMModel(ModuleModel):
     @LUT.setter
     def LUT(self, value):
         self._LUT = value
+
+    @property
+    def frequency_sweep_start(self):
+        """The timestamp for when the frequency sweep has been started. This is used for timing of the frequency sweep."""
+        return self._frequency_sweep_start
+
+    @frequency_sweep_start.setter
+    def frequency_sweep_start(self, value):
+        self._frequency_sweep_start = value
+
+    @property
+    def frequency_sweep_end(self):
+        """The timestamp for when the frequency sweep has been ended. This is used for timing of the frequency sweep."""
+        return self._frequency_sweep_end
+
+    @frequency_sweep_end.setter
+    def frequency_sweep_end(self, value):
+        self._frequency_sweep_end = value

@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import json
+import time
 from serial.tools.list_ports import comports
 from PyQt6.QtTest import QTest
 from PyQt6 import QtSerialPort
@@ -122,6 +123,7 @@ class AutoTMController(ModuleController):
 
         # Print the command 'f<start>f<stop>f<step>' to the serial connection
         command = "f%sf%sf%s" % (start_frequency, stop_frequency, frequency_step)
+        self.module.model.frequency_sweep_start = time.time()
         confirmation = self.send_command(command)
         if confirmation:
             # We create the frequency sweep spinner dialog
@@ -152,6 +154,14 @@ class AutoTMController(ModuleController):
                     self.module.model.data_points.copy()
                 )
                 self.module.view.frequency_sweep_spinner.hide()
+                self.module.model.frequency_sweep_stop = time.time()
+                self.module.view.add_info_text(
+                    "Frequency sweep finished in %.2f seconds"
+                    % (
+                        self.module.model.frequency_sweep_stop
+                        - self.module.model.frequency_sweep_start
+                    )
+                )
             # If the text starts with 'r' and a short calibration is active we know that the data is a short calibration
             elif (
                 text.startswith("r") and self.module.model.active_calibration == "short"
