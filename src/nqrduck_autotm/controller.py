@@ -24,17 +24,41 @@ class AutoTMController(ModuleController):
         for device in self.module.model.available_devices:
             logger.debug("Found device: %s", device)
 
-    def connect(self, device: str) -> None:
-        """Connect to the specified device.
+    def handle_connection(self, device: str) -> None:
+        """Connect or disconnect to the specified device based on if there already is a connection.
 
         Args:
-            device (str): The device port to connect to."""
+            device (str): The device port to connect to.
+
+        @TODO: If the user actually want to connect to another device while already connected to one,
+        this would have to be handled differently. But this doesn't really make sense in the current implementation.
+        """
         logger.debug("Connecting to device %s", device)
+        # If the user has already connected to a device, close the previous connection
+        if self.module.model.serial is not None:
+            if self.module.model.serial.isOpen():
+                logger.debug("Closing previous connection")
+                serial = self.module.model.serial
+                serial.close()
+                self.module.model.serial = serial
+            else:
+                self.open_connection(device)
+        # This is just for the first time the user connects to the device
+        else:
+            self.open_connection(device)
+
+    def open_connection(self, device: str) -> None:
+        """Open a connection to the specified device.
+
+        Args:
+            device (str): The device port to connect to.
+        """
         try:
-            self.module.model.serial = QtSerialPort.QSerialPort(
+            serial = QtSerialPort.QSerialPort(
                 device, baudRate=self.BAUDRATE, readyRead=self.on_ready_read
             )
-            self.module.model.serial.open(QtSerialPort.QSerialPort.OpenModeFlag.ReadWrite)
+            serial.open(QtSerialPort.QSerialPort.OpenModeFlag.ReadWrite)
+            self.module.model.serial = serial
 
             logger.debug("Connected to device %s", device)
         except Exception as e:
@@ -77,9 +101,12 @@ class AutoTMController(ModuleController):
             return
 
         if start_frequency < MIN_FREQUENCY or stop_frequency > MAX_FREQUENCY:
-            error = "Could not start frequency sweep. Start and stop frequency must be between %s and %s MHz" % (
-                MIN_FREQUENCY / 1e6,
-                MAX_FREQUENCY / 1e6,
+            error = (
+                "Could not start frequency sweep. Start and stop frequency must be between %s and %s MHz"
+                % (
+                    MIN_FREQUENCY / 1e6,
+                    MAX_FREQUENCY / 1e6,
+                )
             )
             logger.error(error)
             self.module.view.add_info_text(error)
@@ -108,7 +135,10 @@ class AutoTMController(ModuleController):
             # logger.debug("Received data: %s", text)
             # If the text starts with 'f' and the frequency sweep spinner is visible we know that the data is a data point
             # then we have the data for the return loss and the phase at a certain frequency
-            if text.startswith("f") and self.module.view.frequency_sweep_spinner.isVisible():
+            if (
+                text.startswith("f")
+                and self.module.view.frequency_sweep_spinner.isVisible()
+            ):
                 text = text[1:].split("r")
                 frequency = float(text[0])
                 return_loss, phase = map(float, text[1].split("p"))
@@ -116,24 +146,38 @@ class AutoTMController(ModuleController):
             # If the text starts with 'r' and no calibration is active we know that the data is a measurement
             elif text.startswith("r") and self.module.model.active_calibration == None:
                 logger.debug("Measurement finished")
-                self.module.model.measurement = S11Data(self.module.model.data_points.copy())
+                self.module.model.measurement = S11Data(
+                    self.module.model.data_points.copy()
+                )
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'r' and a short calibration is active we know that the data is a short calibration
-            elif text.startswith("r") and self.module.model.active_calibration == "short":
+            elif (
+                text.startswith("r") and self.module.model.active_calibration == "short"
+            ):
                 logger.debug("Short calibration finished")
-                self.module.model.short_calibration = S11Data(self.module.model.data_points.copy())
+                self.module.model.short_calibration = S11Data(
+                    self.module.model.data_points.copy()
+                )
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'r' and an open calibration is active we know that the data is an open calibration
-            elif text.startswith("r") and self.module.model.active_calibration == "open":
+            elif (
+                text.startswith("r") and self.module.model.active_calibration == "open"
+            ):
                 logger.debug("Open calibration finished")
-                self.module.model.open_calibration = S11Data(self.module.model.data_points.copy())
+                self.module.model.open_calibration = S11Data(
+                    self.module.model.data_points.copy()
+                )
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'r' and a load calibration is active we know that the data is a load calibration
-            elif text.startswith("r") and self.module.model.active_calibration == "load":
+            elif (
+                text.startswith("r") and self.module.model.active_calibration == "load"
+            ):
                 logger.debug("Load calibration finished")
-                self.module.model.load_calibration = S11Data(self.module.model.data_points.copy())
+                self.module.model.load_calibration = S11Data(
+                    self.module.model.data_points.copy()
+                )
                 self.module.model.active_calibration = None
                 self.module.view.frequency_sweep_spinner.hide()
             # If the text starts with 'i' we know that the data is an info message
@@ -167,7 +211,9 @@ class AutoTMController(ModuleController):
                     logger.debug("Starting next voltage sweep: %s", command)
                     self.send_command(command)
 
-    def on_short_calibration(self, start_frequency: float, stop_frequency: float) -> None:
+    def on_short_calibration(
+        self, start_frequency: float, stop_frequency: float
+    ) -> None:
         """This method is called when the short calibration button is pressed.
         It starts a frequency sweep in the specified range and then starts a short calibration.
         """
@@ -175,7 +221,9 @@ class AutoTMController(ModuleController):
         self.module.model.init_short_calibration()
         self.start_frequency_sweep(start_frequency, stop_frequency)
 
-    def on_open_calibration(self, start_frequency: float, stop_frequency: float) -> None:
+    def on_open_calibration(
+        self, start_frequency: float, stop_frequency: float
+    ) -> None:
         """This method is called when the open calibration button is pressed.
         It starts a frequency sweep in the specified range and then starts an open calibration.
         """
@@ -183,7 +231,9 @@ class AutoTMController(ModuleController):
         self.module.model.init_open_calibration()
         self.start_frequency_sweep(start_frequency, stop_frequency)
 
-    def on_load_calibration(self, start_frequency: float, stop_frequency: float) -> None:
+    def on_load_calibration(
+        self, start_frequency: float, stop_frequency: float
+    ) -> None:
         """This method is called when the load calibration button is pressed.
         It starts a frequency sweep in the specified range and then loads a calibration.
         """
@@ -205,13 +255,19 @@ class AutoTMController(ModuleController):
         logger.debug("Calculating calibration")
         # First we check if the short and open calibration data points are available
         if self.module.model.short_calibration == None:
-            logger.error("Could not calculate calibration. No short calibration data points available.")
+            logger.error(
+                "Could not calculate calibration. No short calibration data points available."
+            )
             return
         if self.module.model.open_calibration == None:
-            logger.error("Could not calculate calibration. No open calibration data points available.")
+            logger.error(
+                "Could not calculate calibration. No open calibration data points available."
+            )
             return
         if self.module.model.load_calibration == None:
-            logger.error("Could not calculate calibration. No load calibration data points available.")
+            logger.error(
+                "Could not calculate calibration. No load calibration data points available."
+            )
             return
 
         # Then we calculate the calibration
@@ -226,7 +282,9 @@ class AutoTMController(ModuleController):
         e_00s = []
         e_11s = []
         delta_es = []
-        for gamma_s, gamma_o, gamma_l in zip(measured_gamma_short, measured_gamma_open, measured_gamma_load):
+        for gamma_s, gamma_o, gamma_l in zip(
+            measured_gamma_short, measured_gamma_open, measured_gamma_load
+        ):
             # This is the solution from
             A = np.array(
                 [
@@ -257,15 +315,21 @@ class AutoTMController(ModuleController):
         logger.debug("Exporting calibration")
         # First we check if the short and open calibration data points are available
         if self.module.model.short_calibration == None:
-            logger.error("Could not export calibration. No short calibration data points available.")
+            logger.error(
+                "Could not export calibration. No short calibration data points available."
+            )
             return
 
         if self.module.model.open_calibration == None:
-            logger.error("Could not export calibration. No open calibration data points available.")
+            logger.error(
+                "Could not export calibration. No open calibration data points available."
+            )
             return
 
         if self.module.model.load_calibration == None:
-            logger.error("Could not export calibration. No load calibration data points available.")
+            logger.error(
+                "Could not export calibration. No load calibration data points available."
+            )
             return
 
         # Then we export the different calibrations as a json file
@@ -316,7 +380,9 @@ class AutoTMController(ModuleController):
             return
 
         if tuning_voltage < 0 or matching_voltage < 0:
-            error = "Could not set voltages. Tuning and matching voltage must be positive"
+            error = (
+                "Could not set voltages. Tuning and matching voltage must be positive"
+            )
             logger.error(error)
             self.module.view.add_info_text(error)
             return
@@ -332,7 +398,7 @@ class AutoTMController(ModuleController):
             tuning_voltage,
             matching_voltage,
         )
-        
+
         command = "v%sv%s" % (matching_voltage, tuning_voltage)
         self.send_command(command)
 
@@ -368,7 +434,12 @@ class AutoTMController(ModuleController):
             self.module.view.add_info_text(error)
             return
 
-        if start_frequency < 0 or stop_frequency < 0 or frequency_step < 0 or voltage_resolution < 0:
+        if (
+            start_frequency < 0
+            or stop_frequency < 0
+            or frequency_step < 0
+            or voltage_resolution < 0
+        ):
             error = "Could not generate LUT. Start frequency, stop frequency, frequency step and voltage resolution must be positive"
             logger.error(error)
             self.module.view.add_info_text(error)
@@ -395,7 +466,9 @@ class AutoTMController(ModuleController):
         )
 
         # We create the lookup table
-        LUT = LookupTable(start_frequency, stop_frequency, frequency_step, voltage_resolution)
+        LUT = LookupTable(
+            start_frequency, stop_frequency, frequency_step, voltage_resolution
+        )
 
         LUT.started_frequency = start_frequency
         self.module.model.LUT = LUT
@@ -403,25 +476,24 @@ class AutoTMController(ModuleController):
         # We write the first command to the serial connection
         command = "s%s" % (start_frequency)
         self.send_command(command)
-        
+
     def switch_to_preamp(self) -> None:
-        """ This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
+        """This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
         This is the mode for either NQR or NMR measurements or if on wants to check the tuning of the probe coil on a network analyzer.
         """
         logger.debug("Switching to preamp")
         self.send_command("cp")
-        
-        
+
     def switch_to_atm(self) -> None:
-        """ This method is used to send the command 'ca' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'ATM. 
+        """This method is used to send the command 'ca' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'ATM.
         In this state the atm system can be used to measure the reflection coefficient of the probecoils.
         """
         logger.debug("Switching to atm")
         self.send_command("ca")
 
-    def send_command(self, command : str) -> None:
-        """ This method is used to send a command to the active serial connection.
-        
+    def send_command(self, command: str) -> None:
+        """This method is used to send a command to the active serial connection.
+
         Args:
             command (str): The command that should be send to the atm system.
         """
@@ -434,13 +506,13 @@ class AutoTMController(ModuleController):
             QApplication.processEvents()
         except AttributeError:
             logger.error("Could not send command. No device connected.")
-            self.module.view.add_error_text("Could not send command. No device connected.")
-            
+            self.module.view.add_error_text(
+                "Could not send command. No device connected."
+            )
+
     def homing(self) -> None:
-        """ This method is used to send the command 'h' to the atm system. 
+        """This method is used to send the command 'h' to the atm system.
         This command is used to home the stepper motors of the atm system.
         """
         logger.debug("Homing")
         self.send_command("h")
-        
-    

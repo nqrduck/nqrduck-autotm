@@ -148,6 +148,7 @@ class AutoTMModel(ModuleModel):
         self.data_points = []
         self.active_calibration = None
         self.calibration = None
+        self.serial = None
 
     @property
     def available_devices(self):
