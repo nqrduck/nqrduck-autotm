@@ -100,7 +100,7 @@ class AutoTMView(ModuleView):
         )
 
         # On clicking of the homingButton call the homing method
-        self._ui_form.homingButton.clicked.connect(self.module.controller.homing)
+        self._ui_form.starpositionButton.clicked.connect(self.module.controller.homing)
 
         # Connect the measurement finished signal to the plot_measurement slot
         self.module.model.measurement_finished.connect(self.plot_measurement)
