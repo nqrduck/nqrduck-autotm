@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
+from nqrduck.assets.icons import Logos
 from .widget import Ui_Form
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,10 @@ class AutoTMView(ModuleView):
         self._ui_form.scrollAreaWidgetContents.layout().setAlignment(
             Qt.AlignmentFlag.AlignTop
         )
+
+        # Add button Icons
+        self._ui_form.startButton.setIcon(Logos.Play_16x16())
+        self._ui_form.startButton.setIconSize(self._ui_form.startButton.size())
 
         self.init_plot()
         self.init_labels()
@@ -263,12 +268,23 @@ class AutoTMView(ModuleView):
         Args:
             text (str): Text to add to the error text box.
         """
+        message_widget = QWidget()
+        message_widget.setLayout(QHBoxLayout())
+
+        error_icon = QLabel()
+        error_icon.setPixmap(
+            Logos.Error_16x16().pixmap(Logos.Error_16x16().availableSizes()[0])
+        )
         # Add a timestamp to the text
         timestamp = datetime.now().strftime("%H:%M:%S")
-        text = "[%s] %s ERROR:" % (timestamp, text)
+        text = "[%s] %s" % (timestamp, text)
         text_label = QLabel(text)
         text_label.setStyleSheet("font-size: 25px; color: red;")
-        self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
+
+        message_widget.layout().addWidget(error_icon)
+        message_widget.layout().addWidget(text_label)
+
+        self._ui_form.scrollAreaWidgetContents.layout().addWidget(message_widget)
         self._ui_form.scrollArea.verticalScrollBar().setValue(
             self._ui_form.scrollArea.verticalScrollBar().maximum()
         )

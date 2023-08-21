@@ -491,24 +491,58 @@ class AutoTMController(ModuleController):
         logger.debug("Switching to atm")
         self.send_command("ca")
 
-    def send_command(self, command: str) -> None:
+    def send_command(self, command: str) -> bool:
         """This method is used to send a command to the active serial connection.
 
         Args:
             command (str): The command that should be send to the atm system.
+
+        Returns:
+            bool: True if the command was send successfully, False otherwise.
         """
         logger.debug("Sending command %s", command)
+        timeout = 1000  # ms
+
+        if self.module.model.serial is None:
+            logger.error("Could not send command. No serial connection")
+            self.module.view.add_error_text(
+                "Could not send command. No serial connection"
+            )
+            return False
+
+        if self.module.model.serial.isOpen() == False:
+            logger.error("Could not send command. Serial connection is not open")
+            self.module.view.add_error_text(
+                "Could not send command. Serial connection is not open"
+            )
+            return False
+
         try:
             self.module.model.serial.write(command.encode("utf-8"))
-            # Wait for 0.5 seconds
-            QTest.qWait(500)
-            # Make sure that the command is being send
-            QApplication.processEvents()
-        except AttributeError:
-            logger.error("Could not send command. No device connected.")
-            self.module.view.add_error_text(
-                "Could not send command. No device connected."
-            )
+            # Wait for the confirmation of the command ('c') to be read with a timeout of 1 second
+
+            if not self.module.model.serial.waitForReadyRead(timeout):
+                logger.error("Could not send command. Timeout")
+                self.module.view.add_error_text("Could not send command. Timeout")
+                return False
+
+            # Read the confirmation of the command
+            confirmation = self.module.model.serial.readAll().data().decode("utf-8")
+            logger.debug("Confirmation: %s", confirmation)
+
+            if confirmation == "c":
+                logger.debug("Command send successfully")
+                return True
+            else:
+                logger.error("Could not send command. No confirmation received")
+                self.module.view.add_error_text(
+                    "Could not send command. No confirmation received"
+                )
+                return False
+
+        except Exception as e:
+            logger.error("Could not send command. %s", e)
+            self.module.view.add_error_text("Could not send command. %s" % e)
 
     def homing(self) -> None:
         """This method is used to send the command 'h' to the atm system.
