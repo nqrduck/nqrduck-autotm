@@ -22,6 +22,7 @@ from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
 from nqrduck.assets.icons import Logos
+from nqrduck.assets.animations import DuckAnimations
 from .widget import Ui_Form
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ class AutoTMView(ModuleView):
         self._ui_form.setupUi(self)
         self.widget = widget
 
-        self.frequency_sweep_spinner = self.FrequencySweepSpinner()
+        self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
         self.frequency_sweep_spinner.hide()
 
         # Disable the connectButton while no devices are selected
@@ -291,7 +292,7 @@ class AutoTMView(ModuleView):
 
     def create_frequency_sweep_spinner_dialog(self) -> None:
         """Creates a frequency sweep spinner dialog."""
-        self.frequency_sweep_spinner = self.FrequencySweepSpinner()
+        self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
         self.frequency_sweep_spinner.show()
 
     def view_lut(self) -> None:
@@ -303,19 +304,19 @@ class AutoTMView(ModuleView):
     class FrequencySweepSpinner(QDialog):
         """This class implements a spinner dialog that is shown during a frequency sweep."""
 
-        def __init__(self):
-            super().__init__()
+        def __init__(self, parent=None):
+            super().__init__(parent)
             self.setWindowTitle("Frequency sweep")
             self.setModal(True)
             self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-            path = Path(__file__).parent
-            self.spinner_movie = QMovie(str(path / "resources/duck_kick.gif"))
+            self.spinner_movie = DuckAnimations.DuckSleep128x128()
             self.spinner_label = QLabel(self)
             self.spinner_label.setMovie(self.spinner_movie)
 
             self.layout = QVBoxLayout(self)
+            self.layout.addWidget(QLabel("Performing frequency sweep..."))
             self.layout.addWidget(self.spinner_label)
 
             self.spinner_movie.start()
