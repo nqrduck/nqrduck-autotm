@@ -119,12 +119,14 @@ class AutoTMController(ModuleController):
             stop_frequency,
             frequency_step,
         )
-        # We create the frequency sweep spinner dialog
-        self.module.model.clear_data_points()
-        self.module.view.create_frequency_sweep_spinner_dialog()
+
         # Print the command 'f<start>f<stop>f<step>' to the serial connection
         command = "f%sf%sf%s" % (start_frequency, stop_frequency, frequency_step)
-        self.send_command(command)
+        confirmation = self.send_command(command)
+        if confirmation:
+            # We create the frequency sweep spinner dialog
+            self.module.model.clear_data_points()
+            self.module.view.create_frequency_sweep_spinner_dialog()
 
     def on_ready_read(self) -> None:
         """This method is called when data is received from the serial connection."""
@@ -475,7 +477,9 @@ class AutoTMController(ModuleController):
 
         # We write the first command to the serial connection
         command = "s%s" % (start_frequency)
-        self.send_command(command)
+        confirmation = self.send_command(command)
+        if not confirmation:
+            return
 
     def switch_to_preamp(self) -> None:
         """This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
@@ -501,7 +505,7 @@ class AutoTMController(ModuleController):
             bool: True if the command was send successfully, False otherwise.
         """
         logger.debug("Sending command %s", command)
-        timeout = 1000  # ms
+        timeout = 10000  # ms
 
         if self.module.model.serial is None:
             logger.error("Could not send command. No serial connection")
@@ -526,8 +530,7 @@ class AutoTMController(ModuleController):
                 self.module.view.add_error_text("Could not send command. Timeout")
                 return False
 
-            # Read the confirmation of the command
-            confirmation = self.module.model.serial.readAll().data().decode("utf-8")
+            confirmation = self.module.model.serial.readLine().data().decode("utf-8")
             logger.debug("Confirmation: %s", confirmation)
 
             if confirmation == "c":
