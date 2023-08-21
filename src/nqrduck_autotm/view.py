@@ -143,7 +143,7 @@ class AutoTMView(ModuleView):
         It opens the calibration window.
         """
         logger.debug("Calibration button clicked")
-        self.calibration_window = self.CalibrationWindow(self.module)
+        self.calibration_window = self.CalibrationWindow(self.module, self)
         self.calibration_window.show()
 
     @pyqtSlot(list)
@@ -367,11 +367,11 @@ class AutoTMView(ModuleView):
                 matching_voltage = str(self.module.model.LUT.data[frequency][0])
                 self.module.controller.set_voltages(tuning_voltage, matching_voltage)
 
-    class CalibrationWindow(QWidget):
+    class CalibrationWindow(QDialog):
         def __init__(self, module, parent=None):
-            super().__init__()
-            self.module = module
+            super().__init__(parent)
             self.setParent(parent)
+            self.module = module
             self.setWindowTitle("Calibration")
 
             # Add vertical main layout
@@ -390,6 +390,7 @@ class AutoTMView(ModuleView):
             frequency_layout.addWidget(stop_edit)
             unit_label = QLabel("MHz")
             frequency_layout.addWidget(unit_label)
+            frequency_layout.addStretch()
 
             # Add horizontal layout for the calibration type
             type_layout = QHBoxLayout()
