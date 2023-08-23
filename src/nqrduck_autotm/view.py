@@ -231,7 +231,7 @@ class AutoTMView(ModuleView):
 
         self.phase_ax.set_ylabel("|Phase (deg)|")
         self.phase_ax.plot(frequency, phase, color="orange", linestyle="--")
-        self.phase_ax.set_ylim(-180, 180)
+        self.phase_ax.set_ylim(0, 180)
         self.phase_ax.invert_yaxis()
 
         magnitude_ax.set_xlabel("Frequency (MHz)")
