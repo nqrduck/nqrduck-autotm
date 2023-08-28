@@ -1,6 +1,7 @@
 import cmath
 import numpy as np
 import logging
+from scipy.signal import find_peaks
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtSerialPort import QSerialPort
 from nqrduck.module.module_model import ModuleModel
@@ -12,7 +13,7 @@ class S11Data:
     # Conversion factors - the data is generally sent and received in mV
     # These values are used to convert the data to dB and degrees
     CENTER_POINT_MAGNITUDE = 900  # mV
-    CENTER_POINT_PHASE = 900  # mV
+    CENTER_POINT_PHASE = 0  # mV
     MAGNITUDE_SLOPE = 30  # dB/mV
     PHASE_SLOPE = 10  # deg/mV
 
@@ -32,9 +33,18 @@ class S11Data:
         ) / self.MAGNITUDE_SLOPE
 
     @property
-    def phase_deg(self):
-        """Returns the absolute value of the phase in degrees"""
-        return (self.phase_mv - self.CENTER_POINT_PHASE) / self.PHASE_SLOPE
+    def phase_deg(self, phase_correction=True):
+        """Returns the absolute value of the phase in degrees
+
+        Keyword Arguments:
+            phase_correction {bool} -- If True, the phase correction is applied. (default: {False})
+        """
+
+        phase_deg = (self.phase_mv - self.CENTER_POINT_PHASE) / self.PHASE_SLOPE
+        if phase_correction:
+            phase_deg = self.phase_correction(self.frequency, phase_deg)
+
+        return phase_deg
 
     @property
     def phase_rad(self):
@@ -50,6 +60,86 @@ class S11Data:
             cmath.rect(10 ** (-loss_db / 20), phase_rad)
             for loss_db, phase_rad in zip(self.return_loss_db, self.phase_rad)
         ]
+
+    def phase_correction(
+        self, frequency_data: np.array, phase_data: np.array
+    ) -> np.array:
+        """This method fixes the phase sign of the phase data.
+        The AD8302 can only measure the absolute value of the phase.
+        Therefore we need to correct the phase sign. This can be done via the slope of the phase.
+        If the slope is negative, the phase is positive and vice versa.
+
+        Args:
+            frequency_data (np.array): The frequency data.
+            phase_data (np.array): The phase data.
+
+        Returns:
+            np.array: The corrected phase data.
+        """
+        # First we apply a moving average filter to the phase data
+        WINDOW_SIZE = 5
+        phase_data_filtered = (
+            np.convolve(phase_data, np.ones(WINDOW_SIZE), "same") / WINDOW_SIZE
+        )
+
+        # Fix transient response
+        phase_data_filtered[: WINDOW_SIZE // 2] = phase_data[: WINDOW_SIZE // 2]
+        phase_data_filtered[-WINDOW_SIZE // 2 :] = phase_data[-WINDOW_SIZE // 2 :]
+
+        # Now we find the peaks and valleys of the data
+        HEIGHT = 100
+        distance = len(phase_data_filtered) / 10
+
+        peaks, _ = find_peaks(phase_data_filtered, distance=distance, height=HEIGHT)
+
+        valleys, _ = find_peaks(
+            180 - phase_data_filtered, distance=distance, height=HEIGHT
+        )
+
+        # Determine if the first point is a peak or a valley
+        if phase_data_filtered[0] > phase_data_filtered[1]:
+            peaks = np.insert(peaks, 0, 0)
+        else:
+            valleys = np.insert(valleys, 0, 0)
+
+        # Determine if the last point is a peak or a valley
+        if phase_data_filtered[-1] > phase_data_filtered[-2]:
+            peaks = np.append(peaks, len(phase_data_filtered) - 1)
+        else:
+            valleys = np.append(valleys, len(phase_data_filtered) - 1)
+
+        frequency_peaks = frequency_data[peaks]
+        frequency_valleys = frequency_data[valleys]
+
+        # Combine the peaks and valleys
+        frequency_peaks_valleys = np.sort(
+            np.concatenate((frequency_peaks, frequency_valleys))
+        )
+        peaks_valleys = np.sort(np.concatenate((peaks, valleys)))
+
+        # Now we can determine the slope of the phase
+        # For this we compare the phase of our peaks_valleys array to the next point
+        # If the phase is increasing, the slope is positive, if it is decreasing, the slope is negative
+        phase_slope = np.zeros(len(peaks_valleys) - 1)
+        for i in range(len(peaks_valleys) - 1):
+            phase_slope[i] = (
+                phase_data_filtered[peaks_valleys[i + 1]]
+                - phase_data_filtered[peaks_valleys[i]]
+            )
+
+        # Now we can determine the sign of the phase
+        # If the slope is negative, the phase is positive and vice versa
+        phase_sign = np.sign(phase_slope) * -1
+
+        # Now we can correct the phase for the different sections
+        phase_data_corrected = np.zeros(len(phase_data))
+        for i in range(len(peaks_valleys) - 1):
+            phase_data_corrected[peaks_valleys[i] : peaks_valleys[i + 1]] = (
+                phase_data_filtered[peaks_valleys[i] : peaks_valleys[i + 1]]
+                * phase_sign[i]
+            )
+
+        return phase_data_corrected
 
     def to_json(self):
         return {
@@ -148,6 +238,7 @@ class AutoTMModel(ModuleModel):
         self.data_points = []
         self.active_calibration = None
         self.calibration = None
+        self.serial = None
 
     @property
     def available_devices(self):
@@ -265,3 +356,21 @@ class AutoTMModel(ModuleModel):
     @LUT.setter
     def LUT(self, value):
         self._LUT = value
+
+    @property
+    def frequency_sweep_start(self):
+        """The timestamp for when the frequency sweep has been started. This is used for timing of the frequency sweep."""
+        return self._frequency_sweep_start
+
+    @frequency_sweep_start.setter
+    def frequency_sweep_start(self, value):
+        self._frequency_sweep_start = value
+
+    @property
+    def frequency_sweep_end(self):
+        """The timestamp for when the frequency sweep has been ended. This is used for timing of the frequency sweep."""
+        return self._frequency_sweep_end
+
+    @frequency_sweep_end.setter
+    def frequency_sweep_end(self, value):
+        self._frequency_sweep_end = value
