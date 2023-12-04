@@ -18,10 +18,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSlot, Qt
 from nqrduck.module.module_view import ModuleView
 from nqrduck.contrib.mplwidget import MplWidget
-<<<<<<< HEAD
-=======
 from nqrduck.assets.icons import Logos
->>>>>>> c21dc155fa5b50d6dce64605a6d86007ea8086c7
 from nqrduck.assets.animations import DuckAnimations
 from .widget import Ui_Form
 
@@ -310,12 +307,7 @@ class AutoTMView(ModuleView):
             self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-<<<<<<< HEAD
-            
-            self.spinner_movie = DuckAnimations.DuckKick128x128()
-=======
             self.spinner_movie = DuckAnimations.DuckSleep128x128()
->>>>>>> c21dc155fa5b50d6dce64605a6d86007ea8086c7
             self.spinner_label = QLabel(self)
             self.spinner_label.setMovie(self.spinner_movie)
 
