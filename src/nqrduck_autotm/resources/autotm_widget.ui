@@ -299,7 +299,7 @@
          <item row="8" column="0" colspan="2">
           <widget class="QPushButton" name="generateLUTButton">
            <property name="text">
-            <string>Start Voltage Sweep</string>
+            <string>Generate LUT</string>
            </property>
           </widget>
          </item>
