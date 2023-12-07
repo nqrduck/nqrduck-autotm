@@ -178,16 +178,6 @@ class LookupTable:
         # This is the frequency at which the tuning and matching process was started
         self.started_frequency = None
 
-        self.init_voltages()
-
-    def init_voltages(self) -> None:
-        """Initialize the lookup table with default values."""
-        for frequency in np.arange(
-            self.start_frequency, self.stop_frequency, self.frequency_step
-        ):
-            self.started_frequency = frequency
-            self.add_voltages(None, None)
-
     def is_incomplete(self) -> bool:
         """This method returns True if the lookup table is incomplete,
         i.e. if there are frequencies for which no the tuning or matching voltage is none.
@@ -214,6 +204,33 @@ class LookupTable:
                 return frequency
 
         return None
+    
+    def get_entry_number(self, frequency: float) -> int:
+        """This method returns the entry number of the given frequency.
+
+        Args:
+            frequency (float): The frequency for which the entry number should be returned.
+
+        Returns:
+            int: The entry number of the given frequency.
+        """
+        # Round to closest integer
+        return int(round((frequency - self.start_frequency) / self.frequency_step))
+
+class ElectricalLookupTable(LookupTable):
+    TYPE = "Electrical"
+
+    def __init__(self, start_frequency: float, stop_frequency: float, frequency_step: float) -> None:
+        super().__init__(start_frequency, stop_frequency, frequency_step)
+        self.init_voltages()
+
+    def init_voltages(self) -> None:
+        """Initialize the lookup table with default values."""
+        for frequency in np.arange(
+            self.start_frequency, self.stop_frequency, self.frequency_step
+        ):
+            self.started_frequency = frequency
+            self.add_voltages(None, None)
 
     def add_voltages(self, tuning_voltage: float, matching_voltage: float) -> None:
         """Add a tuning and matching voltage for the last started frequency to the lookup table.
@@ -223,7 +240,22 @@ class LookupTable:
             matching_voltage (float): The matching voltage for the given frequency."""
         self.data[self.started_frequency] = (tuning_voltage, matching_voltage)
 
+    def get_voltages(self, frequency: float) -> tuple:
+        """Get the tuning and matching voltage for the given frequency.
 
+        Args:
+            frequency (float): The frequency for which the tuning and matching voltage should be returned.
+
+        Returns:
+            tuple: The tuning and matching voltage for the given frequency.
+        """
+        entry_number = self.get_entry_number(frequency)
+        key = list(self.data.keys())[entry_number]
+        return self.data[key]
+
+class MechanicalLookupTable(LookupTable):
+    TYPE = "Mechanical"
+    pass
 class AutoTMModel(ModuleModel):
     available_devices_changed = pyqtSignal(list)
     serial_changed = pyqtSignal(QSerialPort)

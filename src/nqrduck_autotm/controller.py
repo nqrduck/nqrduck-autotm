@@ -8,13 +8,32 @@ from PyQt6 import QtSerialPort
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
 from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
-from .model import S11Data, LookupTable
+from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable
 
 logger = logging.getLogger(__name__)
 
 
 class AutoTMController(ModuleController):
     BAUDRATE = 115200
+
+    @pyqtSlot(str, object)
+    def process_signals(self, key: str, value: object) -> None:
+        logger.debug("Received signal: %s", key)
+        if key == "set_tune_and_match":
+            self.tune_and_match(value)
+
+    def tune_and_match(self, frequency: float) -> None:
+        """ This method is called when this module already has a LUT table. It should then tune and match the probe coil to the specified frequency.
+        """
+        if self.module.model.LUT is None:
+            logger.error("Could not tune and match. No LUT available.")
+            return
+        elif self.module.model.LUT.TYPE == "Electrical":
+            tunning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
+            self.set_voltages(str(tunning_voltage), str(matching_voltage))
+
+        elif self.module.model.LUT.TYPE == "Mechanical":
+            pass
 
     def find_devices(self) -> None:
         """Scan for available serial devices and add them to the model as available devices."""
@@ -436,7 +455,11 @@ class AutoTMController(ModuleController):
         )
 
         command = "v%sv%s" % (matching_voltage, tuning_voltage)
-        self.send_command(command)
+        confirmation = self.send_command(command)
+        if confirmation:
+            logger.debug("Voltages set successfully")
+            # Emit  nqrduck signal that T&M was successful
+            self.module.nqrduck_signal.emit("confirm_tune_and_match", None)
 
     def generate_lut(
         self,
@@ -482,7 +505,8 @@ class AutoTMController(ModuleController):
             self.module.view.add_info_text(error)
             return
 
-        if frequency_step > (stop_frequency - start_frequency):
+        # - 0.1 is to prevent float errors
+        if frequency_step - 0.1 > (stop_frequency - start_frequency):
             error = "Could not generate LUT. Frequency step must be smaller than the frequency range"
             logger.error(error)
             self.module.view.add_info_text(error)
@@ -496,7 +520,7 @@ class AutoTMController(ModuleController):
         )
 
         # We create the lookup table
-        LUT = LookupTable(
+        LUT = ElectricalLookupTable(
             start_frequency, stop_frequency, frequency_step
         )
 
