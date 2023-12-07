@@ -501,16 +501,17 @@ class AutoTMController(ModuleController):
         )
 
         LUT.started_frequency = start_frequency
-        self.module.model.LUT = LUT
 
         # We write the first command to the serial connection
         command = "s%s" % (start_frequency)
-        self.module.view.create_el_LUT_spinner_dialog()
+        
         # For timing of the voltage sweep
         self.module.model.voltage_sweep_start = time.time()
         confirmation = self.send_command(command)
-        if not confirmation:
-            return
+        # If the command was send successfully, we set the LUT 
+        if confirmation:
+            self.module.model.LUT = LUT
+            self.module.view.create_el_LUT_spinner_dialog()
 
     def switch_to_preamp(self) -> None:
         """This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
