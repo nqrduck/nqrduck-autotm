@@ -152,7 +152,7 @@
      <item>
       <widget class="QTabWidget" name="typeTab">
        <property name="currentIndex">
-        <number>1</number>
+        <number>0</number>
        </property>
        <widget class="QWidget" name="mechTab">
         <attribute name="title">
@@ -160,8 +160,8 @@
         </attribute>
         <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0,0">
          <item>
-          <layout class="QGridLayout" name="gridLayout_4" rowstretch="0,0,0,0,0,0">
-           <item row="4" column="1">
+          <layout class="QGridLayout" name="gridLayout_4" rowstretch="0,0,0,0,0,0,0">
+           <item row="5" column="1">
             <widget class="QPushButton" name="homeButton">
              <property name="text">
               <string>Home</string>
@@ -181,6 +181,9 @@
              </property>
             </widget>
            </item>
+           <item row="6" column="1">
+            <widget class="QSpinBox" name="absoluteposBox"/>
+           </item>
            <item row="1" column="1">
             <widget class="QComboBox" name="stepperselectBox">
              <item>
@@ -195,14 +198,14 @@
              </item>
             </widget>
            </item>
-           <item row="4" column="0">
+           <item row="5" column="0">
             <widget class="QPushButton" name="decreaseButton">
              <property name="text">
               <string>-</string>
              </property>
             </widget>
            </item>
-           <item row="4" column="2">
+           <item row="5" column="2">
             <widget class="QPushButton" name="increaseButton">
              <property name="text">
               <string>+</string>
@@ -216,7 +219,14 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="1">
+           <item row="6" column="0">
+            <widget class="QLabel" name="label_20">
+             <property name="text">
+              <string>Absolute:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
             <widget class="QSpinBox" name="stepsizeBox">
              <property name="minimum">
               <number>-1000</number>
@@ -229,29 +239,33 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="0">
+           <item row="3" column="0">
             <widget class="QLabel" name="label_17">
              <property name="text">
               <string>Step Size:</string>
              </property>
             </widget>
            </item>
-           <item row="5" column="0">
-            <widget class="QLabel" name="label_20">
-             <property name="text">
-              <string>Absolute:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="2">
+           <item row="6" column="2">
             <widget class="QPushButton" name="absoluteGoButton">
              <property name="text">
               <string>Go</string>
              </property>
             </widget>
            </item>
-           <item row="5" column="1">
-            <widget class="QSpinBox" name="absoluteposBox"/>
+           <item row="2" column="0">
+            <widget class="QLabel" name="label_4">
+             <property name="text">
+              <string>Position:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="stepperposLabel">
+             <property name="text">
+              <string>0</string>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>

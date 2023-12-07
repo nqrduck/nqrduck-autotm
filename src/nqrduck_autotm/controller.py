@@ -98,7 +98,7 @@ class AutoTMController(ModuleController):
         MAX_FREQUENCY = 200e6  # Hz
 
         try:
-            start_frequence = start_frequency.replace(",", ".")
+            start_frequency = start_frequency.replace(",", ".")
             stop_frequency = stop_frequency.replace(",", ".")
             start_frequency = float(start_frequency) * 1e6
             stop_frequency = float(stop_frequency) * 1e6
@@ -264,6 +264,16 @@ class AutoTMController(ModuleController):
                 self.module.view.add_info_text("ATM Error: " + text[1:])
             elif text.startswith("v"):
                 self.process_voltage_sweep_result(text)
+            elif text.startswith("p"):
+                # Format is p<tuning_position>m<matching_position>
+                text = text[1:].split("m")
+                tuning_position, matching_position = map(int, text)
+                self.module.model.tuning_stepper.position = tuning_position
+                self.module.model.matching_stepper.position = matching_position
+                self.module.model.tuning_stepper.homed = True
+                self.module.model.matching_stepper.homed = True
+                logger.debug("Tuning position: %s, Matching position: %s", tuning_position, matching_position)
+                self.module.view.on_active_stepper_changed()
 
 
     def on_short_calibration(
@@ -609,3 +619,21 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Homing")
         self.send_command("h")
+
+    @pyqtSlot(str)
+    def on_stepper_changed(self, stepper: str) -> None:
+        """This method is called when the stepper position is changed.
+        It sends the command to the atm system to change the stepper position.
+
+        Args:
+            stepper (str): The stepper that is being changed. Either 'tuning' or 'matching'.
+        """
+        logger.debug("Stepper %s changed", stepper)
+        stepper = stepper.lower()
+        if stepper == "tuning":
+            self.module.model.active_stepper = self.module.model.tuning_stepper
+        elif stepper == "matching":
+            self.module.model.active_stepper = self.module.model.matching_stepper
+        
+
+

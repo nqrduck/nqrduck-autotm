@@ -217,6 +217,12 @@ class LookupTable:
         # Round to closest integer
         return int(round((frequency - self.start_frequency) / self.frequency_step))
 
+class Stepper:
+
+    def __init__(self) -> None:
+        self.homed = False
+        self.position = 0
+
 class ElectricalLookupTable(LookupTable):
     TYPE = "Electrical"
 
@@ -260,6 +266,7 @@ class AutoTMModel(ModuleModel):
     available_devices_changed = pyqtSignal(list)
     serial_changed = pyqtSignal(QSerialPort)
     data_points_changed = pyqtSignal(list)
+    active_stepper_changed = pyqtSignal(Stepper)
 
     short_calibration_finished = pyqtSignal(S11Data)
     open_calibration_finished = pyqtSignal(S11Data)
@@ -272,6 +279,10 @@ class AutoTMModel(ModuleModel):
         self.active_calibration = None
         self.calibration = None
         self.serial = None
+
+        self.tuning_stepper = Stepper()
+        self.matching_stepper = Stepper()
+        self.active_stepper = self.tuning_stepper
 
     @property
     def available_devices(self):
@@ -317,6 +328,15 @@ class AutoTMModel(ModuleModel):
         """The measurement value is a tuple of three lists: frequency, return loss and phase."""
         self._measurement = value
         self.measurement_finished.emit(value)
+
+    @property
+    def active_stepper(self):
+        return self._active_stepper
+    
+    @active_stepper.setter
+    def active_stepper(self, value):
+        self._active_stepper = value
+        self.active_stepper_changed.emit(value)
 
     # Calibration properties
 

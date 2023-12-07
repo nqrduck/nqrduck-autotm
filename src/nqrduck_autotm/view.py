@@ -39,6 +39,9 @@ class AutoTMView(ModuleView):
 
         # Disable the connectButton while no devices are selected
         self._ui_form.connectButton.setDisabled(True)
+        self._ui_form.decreaseButton.setEnabled(False)
+        self._ui_form.increaseButton.setEnabled(False)
+        self._ui_form.absoluteGoButton.setEnabled(False)
 
         # On clicking of the refresh button scan for available usb devices
         self._ui_form.refreshButton.clicked.connect(self.module.controller.find_devices)
@@ -111,6 +114,12 @@ class AutoTMView(ModuleView):
         self._ui_form.startButton.setIcon(Logos.Play_16x16())
         self._ui_form.startButton.setIconSize(self._ui_form.startButton.size())
 
+        # Stepper selection
+        self._ui_form.stepperselectBox.currentIndexChanged.connect(lambda: self.module.controller.on_stepper_changed(self._ui_form.stepperselectBox.currentText()))
+
+        # Active  stepper changed
+        self.module.model.active_stepper_changed.connect(self.on_active_stepper_changed)
+
         self.init_plot()
         self.init_labels()
 
@@ -156,6 +165,10 @@ class AutoTMView(ModuleView):
             self._ui_form.connectButton.setEnabled(False)
         logger.debug("Updated available devices list")
 
+    def on_stepper_changed():
+        """Update the stepper position label according to the current stepper position."""
+        logger.debug("Updating stepper position label")
+
     @pyqtSlot()
     def on_connect_button_clicked(self) -> None:
         """This method is called when the connect button is clicked.
@@ -183,6 +196,23 @@ class AutoTMView(ModuleView):
             self._ui_form.connectButton.setText("Connect")
 
         logger.debug("Updated serial connection label")
+
+    @pyqtSlot()
+    def on_active_stepper_changed(self) -> None:
+        """Update the stepper position label according to the current stepper position."""
+        logger.debug("Updating stepper position label")
+        self._ui_form.stepperposLabel.setText(str(self.module.model.active_stepper.position))
+        logger.debug("Updated stepper position label")
+
+        # Only allow position change when stepper is  homed
+        if self.module.model.active_stepper.homed:
+            self._ui_form.decreaseButton.setEnabled(True)
+            self._ui_form.increaseButton.setEnabled(True)
+            self._ui_form.absoluteGoButton.setEnabled(True)
+        else:
+            self._ui_form.decreaseButton.setEnabled(False)
+            self._ui_form.increaseButton.setEnabled(False)
+            self._ui_form.absoluteGoButton.setEnabled(False)
 
     def plot_measurement(self, data: "S11Data") -> None:
         """Update the S11 plot with the current data points.
