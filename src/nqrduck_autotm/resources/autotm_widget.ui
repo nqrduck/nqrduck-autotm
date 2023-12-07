@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1280</width>
-    <height>862</height>
+    <height>1011</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -26,6 +26,7 @@
       <widget class="QLabel" name="titleconnectionLabel">
        <property name="font">
         <font>
+         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -77,9 +78,57 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="tmsettingsLabel">
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>T&amp;M Settings:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout_8">
+       <item row="1" column="1">
+        <widget class="QDoubleSpinBox" name="stopfrequencyBox"/>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_13">
+         <property name="text">
+          <string>Stop Frequency (MHz)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QDoubleSpinBox" name="startfrequencyBox"/>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_12">
+         <property name="text">
+          <string>Start Frequency (MHz)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_14">
+         <property name="text">
+          <string>Frequency Step (MHz)</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QDoubleSpinBox" name="frequencystepBox"/>
+       </item>
+      </layout>
+     </item>
+     <item>
       <widget class="QLabel" name="titletypeLabel">
        <property name="font">
         <font>
+         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -97,24 +146,65 @@
         <attribute name="title">
          <string>Mechanical</string>
         </attribute>
-        <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0">
+        <layout class="QVBoxLayout" name="verticalLayout" stretch="0,1,0,0,0">
          <item>
           <layout class="QGridLayout" name="gridLayout_4" rowstretch="0,0,0,0,0,0">
-           <item row="5" column="1">
-            <widget class="QPushButton" name="homematcherButton">
+           <item row="4" column="1">
+            <widget class="QPushButton" name="homeButton">
              <property name="text">
               <string>Home</string>
              </property>
             </widget>
            </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label_17">
+           <item row="0" column="0" colspan="3">
+            <widget class="QLabel" name="label_16">
+             <property name="font">
+              <font>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
              <property name="text">
-              <string>Step Size:</string>
+              <string>Stepper Control:</string>
              </property>
             </widget>
            </item>
            <item row="1" column="1">
+            <widget class="QComboBox" name="stepperselectBox">
+             <item>
+              <property name="text">
+               <string>Tuning</string>
+              </property>
+             </item>
+             <item>
+              <property name="text">
+               <string>Matching</string>
+              </property>
+             </item>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QPushButton" name="decreaseButton">
+             <property name="text">
+              <string>-</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="2">
+            <widget class="QPushButton" name="increaseButton">
+             <property name="text">
+              <string>+</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_18">
+             <property name="text">
+              <string>Stepper:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
             <widget class="QSpinBox" name="stepsizeBox">
              <property name="minimum">
               <number>-1000</number>
@@ -127,68 +217,50 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="0" colspan="3">
-            <widget class="QLabel" name="label_18">
+           <item row="2" column="0">
+            <widget class="QLabel" name="label_17">
              <property name="text">
-              <string>Tuning Stepper:</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="0">
-            <widget class="QPushButton" name="decreasetunerButton">
-             <property name="text">
-              <string>-</string>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="2">
-            <widget class="QPushButton" name="increasetunerButton">
-             <property name="text">
-              <string>+</string>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="0" colspan="3">
-            <widget class="QLabel" name="label_19">
-             <property name="text">
-              <string>Matching Stepper:</string>
+              <string>Step Size:</string>
              </property>
             </widget>
            </item>
            <item row="5" column="0">
-            <widget class="QPushButton" name="decreasematcherButton">
+            <widget class="QLabel" name="label_20">
              <property name="text">
-              <string>-</string>
+              <string>Absolute:</string>
              </property>
             </widget>
            </item>
            <item row="5" column="2">
-            <widget class="QPushButton" name="increasematcherButton">
+            <widget class="QPushButton" name="absoluteGoButton">
              <property name="text">
-              <string>+</string>
+              <string>Go</string>
              </property>
             </widget>
            </item>
-           <item row="3" column="1">
-            <widget class="QPushButton" name="hometunerButton">
-             <property name="text">
-              <string>Home</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="0" colspan="3">
-            <widget class="QLabel" name="label_16">
-             <property name="text">
-              <string>Stepper Control:</string>
-             </property>
-            </widget>
+           <item row="5" column="1">
+            <widget class="QSpinBox" name="absoluteposBox"/>
            </item>
           </layout>
          </item>
          <item>
-          <widget class="QPushButton" name="starpositionButton">
+          <widget class="QPushButton" name="positionButton">
            <property name="text">
-            <string>Start Position</string>
+            <string>Saved Positions</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="mechLUTButton">
+           <property name="text">
+            <string>Generate LUT</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="viewmechLUTButton">
+           <property name="text">
+            <string>View LUT</string>
            </property>
           </widget>
          </item>
@@ -212,15 +284,8 @@
          <string>Electrical</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0,0,0,0,0,0,0,0,0,0">
-         <item row="5" column="0">
-          <widget class="QLabel" name="label_4">
-           <property name="text">
-            <string>Voltage Resolution</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="1">
-          <widget class="QDoubleSpinBox" name="stopfrequencyBox"/>
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="matchingBox"/>
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="label_2">
@@ -229,74 +294,20 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
-          <widget class="QDoubleSpinBox" name="tuningBox"/>
-         </item>
-         <item row="8" column="1">
-          <widget class="QDoubleSpinBox" name="frequencystepBox"/>
-         </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_11">
-           <property name="font">
-            <font>
-             <bold>true</bold>
-            </font>
-           </property>
-           <property name="text">
-            <string>Generate LUT:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="1">
-          <widget class="QDoubleSpinBox" name="startfrequencyBox"/>
-         </item>
-         <item row="9" column="0" colspan="2">
-          <widget class="QPushButton" name="generateLUTButton">
-           <property name="text">
-            <string>Start Voltage Sweep</string>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="0">
-          <widget class="QLabel" name="label_13">
-           <property name="text">
-            <string>Stop Frequency (MHz)</string>
-           </property>
-          </widget>
-         </item>
          <item row="5" column="1">
           <widget class="QDoubleSpinBox" name="resolutionBox"/>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_9">
-           <property name="font">
-            <font>
-             <bold>true</bold>
-            </font>
-           </property>
-           <property name="text">
-            <string>Set Voltages:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="11" column="0">
-          <widget class="QLabel" name="label_15">
-           <property name="text">
-            <string>RF Switch:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="10" column="0" colspan="2">
-          <widget class="QPushButton" name="viewLUTButton">
-           <property name="text">
-            <string>View LUT</string>
-           </property>
-          </widget>
          </item>
          <item row="3" column="0" colspan="2">
           <widget class="QPushButton" name="setvoltagesButton">
            <property name="text">
             <string>Set Voltages</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>Voltage Resolution</string>
            </property>
           </widget>
          </item>
@@ -307,34 +318,46 @@
            </property>
           </widget>
          </item>
-         <item row="6" column="0">
-          <widget class="QLabel" name="label_12">
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="tuningBox"/>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
            <property name="text">
-            <string>Start Frequency (MHz)</string>
+            <string>Set Voltages:</string>
            </property>
           </widget>
          </item>
-         <item row="2" column="1">
-          <widget class="QDoubleSpinBox" name="matchingBox"/>
-         </item>
-         <item row="8" column="0">
-          <widget class="QLabel" name="label_14">
+         <item row="10" column="0" colspan="2">
+          <widget class="QPushButton" name="viewelLUTButton">
            <property name="text">
-            <string>Frequency Step (MHz)</string>
+            <string>View LUT</string>
            </property>
           </widget>
          </item>
-         <item row="12" column="0">
-          <widget class="QPushButton" name="switchpreampButton">
+         <item row="9" column="0" colspan="2">
+          <widget class="QPushButton" name="generateLUTButton">
            <property name="text">
-            <string>Preamplifier</string>
+            <string>Start Voltage Sweep</string>
            </property>
           </widget>
          </item>
-         <item row="12" column="1">
-          <widget class="QPushButton" name="switchATMButton">
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_11">
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
            <property name="text">
-            <string>ATM</string>
+            <string>Generate LUT:</string>
            </property>
           </widget>
          </item>
@@ -343,9 +366,41 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="rfswitchLabel">
+       <property name="font">
+        <font>
+         <weight>75</weight>
+         <bold>true</bold>
+        </font>
+       </property>
+       <property name="text">
+        <string>RF Switch:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QGridLayout" name="gridLayout_7">
+       <item row="0" column="0">
+        <widget class="QPushButton" name="switchATMButton">
+         <property name="text">
+          <string>ATM</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QPushButton" name="switchpreampButton">
+         <property name="text">
+          <string>Preamplifier</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item>
       <widget class="QLabel" name="titlefrequencyLabel">
        <property name="font">
         <font>
+         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -363,17 +418,10 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="2">
-        <widget class="QLabel" name="label_8">
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_7">
          <property name="text">
-          <string>MHz</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QLineEdit" name="stopEdit">
-         <property name="text">
-          <string>100</string>
+          <string>Stop Frequency:</string>
          </property>
         </widget>
        </item>
@@ -384,17 +432,24 @@
          </property>
         </widget>
        </item>
-       <item row="1" column="0">
-        <widget class="QLabel" name="label_7">
-         <property name="text">
-          <string>Stop Frequency:</string>
-         </property>
-        </widget>
-       </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_5">
          <property name="text">
           <string>Start Frequency:</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="stopEdit">
+         <property name="text">
+          <string>100</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QLabel" name="label_8">
+         <property name="text">
+          <string>MHz</string>
          </property>
         </widget>
        </item>
@@ -425,6 +480,7 @@
       <widget class="QLabel" name="titleinfoLabel">
        <property name="font">
         <font>
+         <weight>75</weight>
          <bold>true</bold>
         </font>
        </property>
@@ -443,8 +499,8 @@
          <rect>
           <x>0</x>
           <y>0</y>
-          <width>297</width>
-          <height>68</height>
+          <width>285</width>
+          <height>83</height>
          </rect>
         </property>
        </widget>

@@ -139,6 +139,9 @@ class S11Data:
                 * phase_sign[i]
             )
 
+        # Murks: The last point is always wrong so just set it to the previous value
+        phase_data_corrected[-1] = phase_data_corrected[-2]
+
         return phase_data_corrected
 
     def to_json(self):

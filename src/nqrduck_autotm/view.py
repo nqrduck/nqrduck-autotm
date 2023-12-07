@@ -72,7 +72,7 @@ class AutoTMView(ModuleView):
         )
 
         # On clicking of the viewLUTButton call the view_lut method
-        self._ui_form.viewLUTButton.clicked.connect(self.view_lut)
+        self._ui_form.viewelLUTButton.clicked.connect(self.view_el_lut)
 
         # On clicking of the setvoltagesButton call the set_voltages method
         self._ui_form.setvoltagesButton.clicked.connect(
@@ -97,7 +97,7 @@ class AutoTMView(ModuleView):
         )
 
         # On clicking of the homingButton call the homing method
-        self._ui_form.starpositionButton.clicked.connect(self.module.controller.homing)
+        self._ui_form.homeButton.clicked.connect(self.module.controller.homing)
 
         # Connect the measurement finished signal to the plot_measurement slot
         self.module.model.measurement_finished.connect(self.plot_measurement)
@@ -117,6 +117,7 @@ class AutoTMView(ModuleView):
 
     def init_labels(self) -> None:
         """Makes some of the labels bold for better readability."""
+        self._ui_form.tmsettingsLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titleconnectionLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titlefrequencyLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titletypeLabel.setStyleSheet("font-weight: bold;")
@@ -291,8 +292,8 @@ class AutoTMView(ModuleView):
         self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
         self.frequency_sweep_spinner.show()
 
-    def view_lut(self) -> None:
-        """Creates a new Dialog that shows the currently active LUT."""
+    def view_el_lut(self) -> None:
+        """Creates a new Dialog that shows the currently active electrical LUT."""
         logger.debug("View LUT")
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
