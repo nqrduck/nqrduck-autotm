@@ -95,7 +95,7 @@
        <item row="1" column="1">
         <widget class="QDoubleSpinBox" name="stopfrequencyBox">
          <property name="value">
-          <double>80.299999999999997</double>
+          <double>80.200000000000003</double>
          </property>
         </widget>
        </item>

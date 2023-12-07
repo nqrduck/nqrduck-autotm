@@ -61,7 +61,7 @@ class Ui_Form(object):
         self.gridLayout_8 = QtWidgets.QGridLayout()
         self.gridLayout_8.setObjectName("gridLayout_8")
         self.stopfrequencyBox = QtWidgets.QDoubleSpinBox(parent=Form)
-        self.stopfrequencyBox.setProperty("value", 80.3)
+        self.stopfrequencyBox.setProperty("value", 80.1)
         self.stopfrequencyBox.setObjectName("stopfrequencyBox")
         self.gridLayout_8.addWidget(self.stopfrequencyBox, 1, 1, 1, 1)
         self.label_13 = QtWidgets.QLabel(parent=Form)

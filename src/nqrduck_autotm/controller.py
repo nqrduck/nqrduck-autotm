@@ -232,7 +232,9 @@ class AutoTMController(ModuleController):
                             self.module.model.voltage_sweep_stop
                             - self.module.model.voltage_sweep_start
                         )
-                )
+                    )
+                    # Now we emit the signal that the LUT is finished with the LUT as an argument
+                    self.module.nqrduck_signal.emit("LUT_finished", LUT)
 
     def on_short_calibration(
         self, start_frequency: float, stop_frequency: float

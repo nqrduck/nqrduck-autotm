@@ -363,6 +363,7 @@ class AutoTMView(ModuleView):
             """This method is called when the Test LUT button is clicked. It sets all of the voltages from the lut with a small delay.
             One can then view the matching on a seperate VNA.
             """
+            # This should be in the controller
             for frequency in self.module.model.LUT.data.keys():
                 tuning_voltage = str(self.module.model.LUT.data[frequency][1])
                 matching_voltage = str(self.module.model.LUT.data[frequency][0])
