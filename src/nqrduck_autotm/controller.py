@@ -222,6 +222,17 @@ class AutoTMController(ModuleController):
                     LUT.started_frequency = next_frequency
                     logger.debug("Starting next voltage sweep: %s", command)
                     self.send_command(command)
+                else:
+                    logger.debug("Voltage sweep finished")
+                    self.module.view.el_LUT_spinner.hide()
+                    self.module.model.voltage_sweep_stop = time.time()
+                    self.module.view.add_info_text(
+                        "Voltage sweep finished in %.2f seconds"
+                        % (
+                            self.module.model.voltage_sweep_stop
+                            - self.module.model.voltage_sweep_start
+                        )
+                )
 
     def on_short_calibration(
         self, start_frequency: float, stop_frequency: float
@@ -419,7 +430,6 @@ class AutoTMController(ModuleController):
         start_frequency: str,
         stop_frequency: str,
         frequency_step: str,
-        voltage_resolution: str,
     ) -> None:
         """This method is called when the generate LUT button is pressed.
         It generates a lookup table for the specified frequency range and voltage resolution.
@@ -428,20 +438,17 @@ class AutoTMController(ModuleController):
             start_frequency (str): The start frequency in Hz.
             stop_frequency (str): The stop frequency in Hz.
             frequency_step (str): The frequency step in Hz.
-            voltage_resolution (str): The voltage resolution in V.
         """
         logger.debug("Generating LUT")
         try:
             start_frequency = start_frequency.replace(",", ".")
             stop_frequency = stop_frequency.replace(",", ".")
             frequency_step = frequency_step.replace(",", ".")
-            voltage_resolution = voltage_resolution.replace(",", ".")
             start_frequency = float(start_frequency)
             stop_frequency = float(stop_frequency)
             frequency_step = float(frequency_step)
-            voltage_resolution = float(voltage_resolution)
         except ValueError:
-            error = "Could not generate LUT. Start frequency, stop frequency, frequency step and voltage resolution must be floats"
+            error = "Could not generate LUT. Start frequency, stop frequency, frequency step must be floats"
             logger.error(error)
             self.module.view.add_info_text(error)
             return
@@ -450,9 +457,8 @@ class AutoTMController(ModuleController):
             start_frequency < 0
             or stop_frequency < 0
             or frequency_step < 0
-            or voltage_resolution < 0
         ):
-            error = "Could not generate LUT. Start frequency, stop frequency, frequency step and voltage resolution must be positive"
+            error = "Could not generate LUT. Start frequency, stop frequency, frequency step must be positive"
             logger.error(error)
             self.module.view.add_info_text(error)
             return
@@ -470,16 +476,15 @@ class AutoTMController(ModuleController):
             return
 
         logger.debug(
-            "Generating LUT from %s MHz to %s MHz with a frequency step of %s MHz and a voltage resolution of %s V",
+            "Generating LUT from %s MHz to %s MHz with a frequency step of %s MHz",
             start_frequency,
             stop_frequency,
             frequency_step,
-            voltage_resolution,
         )
 
         # We create the lookup table
         LUT = LookupTable(
-            start_frequency, stop_frequency, frequency_step, voltage_resolution
+            start_frequency, stop_frequency, frequency_step
         )
 
         LUT.started_frequency = start_frequency
@@ -487,6 +492,9 @@ class AutoTMController(ModuleController):
 
         # We write the first command to the serial connection
         command = "s%s" % (start_frequency)
+        self.module.view.create_el_LUT_spinner_dialog()
+        # For timing of the voltage sweep
+        self.module.model.voltage_sweep_start = time.time()
         confirmation = self.send_command(command)
         if not confirmation:
             return
@@ -544,7 +552,7 @@ class AutoTMController(ModuleController):
             logger.debug("Confirmation: %s", confirmation)
 
             if confirmation == "c":
-                logger.debug("Command send successfully")
+                logger.debug("Command sent successfully")
                 return True
             else:
                 logger.error("Could not send command. No confirmation received")

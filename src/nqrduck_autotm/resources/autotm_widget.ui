@@ -93,7 +93,11 @@
      <item>
       <layout class="QGridLayout" name="gridLayout_8">
        <item row="1" column="1">
-        <widget class="QDoubleSpinBox" name="stopfrequencyBox"/>
+        <widget class="QDoubleSpinBox" name="stopfrequencyBox">
+         <property name="value">
+          <double>80.299999999999997</double>
+         </property>
+        </widget>
        </item>
        <item row="1" column="0">
         <widget class="QLabel" name="label_13">
@@ -103,7 +107,11 @@
         </widget>
        </item>
        <item row="0" column="1">
-        <widget class="QDoubleSpinBox" name="startfrequencyBox"/>
+        <widget class="QDoubleSpinBox" name="startfrequencyBox">
+         <property name="value">
+          <double>80.000000000000000</double>
+         </property>
+        </widget>
        </item>
        <item row="0" column="0">
         <widget class="QLabel" name="label_12">
@@ -120,7 +128,11 @@
         </widget>
        </item>
        <item row="2" column="1">
-        <widget class="QDoubleSpinBox" name="frequencystepBox"/>
+        <widget class="QDoubleSpinBox" name="frequencystepBox">
+         <property name="value">
+          <double>0.100000000000000</double>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -140,7 +152,7 @@
      <item>
       <widget class="QTabWidget" name="typeTab">
        <property name="currentIndex">
-        <number>0</number>
+        <number>1</number>
        </property>
        <widget class="QWidget" name="mechTab">
         <attribute name="title">
@@ -283,9 +295,13 @@
         <attribute name="title">
          <string>Electrical</string>
         </attribute>
-        <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0,0,0,0,0,0,0,0,0,0">
-         <item row="2" column="1">
-          <widget class="QDoubleSpinBox" name="matchingBox"/>
+        <layout class="QGridLayout" name="gridLayout_3" rowstretch="0,0,0,0,0,0,0,0,0,0,0,0">
+         <item row="8" column="0" colspan="2">
+          <widget class="QPushButton" name="generateLUTButton">
+           <property name="text">
+            <string>Start Voltage Sweep</string>
+           </property>
+          </widget>
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="label_2">
@@ -294,20 +310,19 @@
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
-          <widget class="QDoubleSpinBox" name="resolutionBox"/>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="tuningBox"/>
          </item>
-         <item row="3" column="0" colspan="2">
-          <widget class="QPushButton" name="setvoltagesButton">
-           <property name="text">
-            <string>Set Voltages</string>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_11">
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
            </property>
-          </widget>
-         </item>
-         <item row="5" column="0">
-          <widget class="QLabel" name="label_4">
            <property name="text">
-            <string>Voltage Resolution</string>
+            <string>Generate LUT:</string>
            </property>
           </widget>
          </item>
@@ -317,9 +332,6 @@
             <string>Voltage Matching</string>
            </property>
           </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QDoubleSpinBox" name="tuningBox"/>
          </item>
          <item row="0" column="0">
           <widget class="QLabel" name="label_9">
@@ -334,32 +346,22 @@
            </property>
           </widget>
          </item>
-         <item row="10" column="0" colspan="2">
+         <item row="9" column="0" colspan="2">
           <widget class="QPushButton" name="viewelLUTButton">
            <property name="text">
             <string>View LUT</string>
            </property>
           </widget>
          </item>
-         <item row="9" column="0" colspan="2">
-          <widget class="QPushButton" name="generateLUTButton">
+         <item row="3" column="0" colspan="2">
+          <widget class="QPushButton" name="setvoltagesButton">
            <property name="text">
-            <string>Start Voltage Sweep</string>
+            <string>Set Voltages</string>
            </property>
           </widget>
          </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_11">
-           <property name="font">
-            <font>
-             <weight>75</weight>
-             <bold>true</bold>
-            </font>
-           </property>
-           <property name="text">
-            <string>Generate LUT:</string>
-           </property>
-          </widget>
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="matchingBox"/>
          </item>
         </layout>
        </widget>

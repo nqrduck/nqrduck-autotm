@@ -34,7 +34,7 @@ class AutoTMView(ModuleView):
         self._ui_form.setupUi(self)
         self.widget = widget
 
-        self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
+        self.frequency_sweep_spinner = self.LoadingSpinner(self)
         self.frequency_sweep_spinner.hide()
 
         # Disable the connectButton while no devices are selected
@@ -67,7 +67,6 @@ class AutoTMView(ModuleView):
                 self._ui_form.startfrequencyBox.text(),
                 self._ui_form.stopfrequencyBox.text(),
                 self._ui_form.frequencystepBox.text(),
-                self._ui_form.resolutionBox.text(),
             )
         )
 
@@ -289,8 +288,13 @@ class AutoTMView(ModuleView):
 
     def create_frequency_sweep_spinner_dialog(self) -> None:
         """Creates a frequency sweep spinner dialog."""
-        self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
+        self.frequency_sweep_spinner = self.LoadingSpinner("Performing frequency sweep ...", self)
         self.frequency_sweep_spinner.show()
+
+    def create_el_LUT_spinner_dialog(self) -> None:
+        """Creates a electrical LUT spinner dialog."""
+        self.el_LUT_spinner = self.LoadingSpinner("Generating electrical LUT ...", self)
+        self.el_LUT_spinner.show()
 
     def view_el_lut(self) -> None:
         """Creates a new Dialog that shows the currently active electrical LUT."""
@@ -298,12 +302,12 @@ class AutoTMView(ModuleView):
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
 
-    class FrequencySweepSpinner(QDialog):
+    class LoadingSpinner(QDialog):
         """This class implements a spinner dialog that is shown during a frequency sweep."""
 
-        def __init__(self, parent=None):
+        def __init__(self, text : str, parent=None):
             super().__init__(parent)
-            self.setWindowTitle("Frequency sweep")
+            self.setWindowTitle("Loading")
             self.setModal(True)
             self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -313,7 +317,7 @@ class AutoTMView(ModuleView):
             self.spinner_label.setMovie(self.spinner_movie)
 
             self.layout = QVBoxLayout(self)
-            self.layout.addWidget(QLabel("Performing frequency sweep..."))
+            self.layout.addWidget(QLabel(text))
             self.layout.addWidget(self.spinner_label)
 
             self.spinner_movie.start()

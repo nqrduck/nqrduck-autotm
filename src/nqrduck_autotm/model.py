@@ -170,12 +170,10 @@ class LookupTable:
         start_frequency: float,
         stop_frequency: float,
         frequency_step: float,
-        voltage_resolution: float,
     ) -> None:
         self.start_frequency = start_frequency
         self.stop_frequency = stop_frequency
         self.frequency_step = frequency_step
-        self.voltage_resolution = voltage_resolution
 
         # This is the frequency at which the tuning and matching process was started
         self.started_frequency = None
