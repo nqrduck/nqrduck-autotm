@@ -116,6 +116,10 @@ class AutoTMView(ModuleView):
 
         # Stepper selection
         self._ui_form.stepperselectBox.currentIndexChanged.connect(lambda: self.module.controller.on_stepper_changed(self._ui_form.stepperselectBox.currentText()))
+        self._ui_form.increaseButton.clicked.connect(lambda: self.module.controller.on_relative_move(self._ui_form.stepsizeBox.text()))
+        self._ui_form.decreaseButton.clicked.connect(lambda: self.module.controller.on_relative_move("-" + self._ui_form.stepsizeBox.text()))
+
+        self._ui_form.absoluteGoButton.clicked.connect(lambda: self.module.controller.on_absolute_move(self._ui_form.absoluteposBox.text()))
 
         # Active  stepper changed
         self.module.model.active_stepper_changed.connect(self.on_active_stepper_changed)

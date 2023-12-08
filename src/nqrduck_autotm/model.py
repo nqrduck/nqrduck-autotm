@@ -223,6 +223,14 @@ class Stepper:
         self.homed = False
         self.position = 0
 
+class TuningStepper(Stepper):
+    TYPE = "Tuning"
+    MAX_STEPS = 1e6
+
+class MatchingStepper(Stepper):
+    TYPE = "Matching"
+    MAX_STEPS = 1e6
+
 class ElectricalLookupTable(LookupTable):
     TYPE = "Electrical"
 
@@ -280,8 +288,8 @@ class AutoTMModel(ModuleModel):
         self.calibration = None
         self.serial = None
 
-        self.tuning_stepper = Stepper()
-        self.matching_stepper = Stepper()
+        self.tuning_stepper = TuningStepper()
+        self.matching_stepper = MatchingStepper()
         self.active_stepper = self.tuning_stepper
 
     @property
