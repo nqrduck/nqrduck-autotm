@@ -8,7 +8,7 @@ from PyQt6 import QtSerialPort
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
 from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
-from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable
+from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable, SavedPosition
 
 logger = logging.getLogger(__name__)
 
@@ -670,6 +670,44 @@ class AutoTMController(ModuleController):
         if self.validate_position(future_position):
             actual_steps = self.calculate_steps_for_absolute_move(future_position)
             self.send_stepper_command(actual_steps)
+
+    def load_positions(self, path : str) -> None:
+        """Load the saved positions from a json file.
+        
+        Args:
+            path (str): The path to the json file.
+        """
+        # First clear the old positions
+        self.module.model.saved_positions = []
+        
+        with open(path, "r") as f:
+            positions = json.load(f)
+            for position in positions:
+                logger.debug("Loading position: %s", position)
+                self.add_position(position["frequency"], position["tuning_position"], position["matching_position"])
+
+
+    def save_positions(self, path: str) -> None:
+        """Save the current positions to a json file.
+        
+        Args:
+            path (str): The path to the json file.
+        """
+        positions = self.module.model.saved_positions
+        with open(path, "w") as f:
+            json_position = [position.to_json() for position in positions]
+            json.dump(json_position, f)
+
+    def add_position(self, frequency: str, tuning_position: str, matching_position: str) -> None:
+        """Add a position to the lookup table.
+        
+        Args:
+            frequency (str): The frequency of the position.
+            tuning_position (str): The tuning position.
+            matching_position (str): The matching position.
+        """
+        logger.debug("Adding new position at %s MHz", frequency)
+        self.module.model.add_saved_position(frequency, tuning_position, matching_position)
 
 
 

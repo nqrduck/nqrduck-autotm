@@ -124,6 +124,9 @@ class AutoTMView(ModuleView):
         # Active  stepper changed
         self.module.model.active_stepper_changed.connect(self.on_active_stepper_changed)
 
+        # Position Button
+        self._ui_form.positionButton.clicked.connect(self.on_position_button_clicked)
+
         self.init_plot()
         self.init_labels()
 
@@ -217,6 +220,15 @@ class AutoTMView(ModuleView):
             self._ui_form.decreaseButton.setEnabled(False)
             self._ui_form.increaseButton.setEnabled(False)
             self._ui_form.absoluteGoButton.setEnabled(False)
+
+    @pyqtSlot()
+    def on_position_button_clicked(self) -> None:
+        """This method is called when the position button is clicked.
+        It opens the position window.
+        """
+        logger.debug("Position button clicked")
+        self.position_window = self.StepperSavedPositionsWindow(self.module, self)
+        self.position_window.show()
 
     def plot_measurement(self, data: "S11Data") -> None:
         """Update the S11 plot with the current data points.
@@ -336,6 +348,165 @@ class AutoTMView(ModuleView):
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
 
+    class StepperSavedPositionsWindow(QDialog):
+        def __init__(self, module, parent=None):
+            super().__init__(parent)
+            self.setParent(parent)
+            self.module = module
+            self.setWindowTitle("Saved positions")
+            # make window larger
+            self.resize(800, 800)
+
+            # Add vertical main layout
+            main_layout = QVBoxLayout()
+
+            # Create table widget
+            self.table_widget = QTableWidget()
+            self.table_widget.setColumnCount(4)
+            self.table_widget.setHorizontalHeaderLabels(
+                ["Frequency", "Tuning Position", "Matching Position", "Button"]
+            )
+
+            self.table_widget.setColumnWidth(0, 100)
+            self.table_widget.setColumnWidth(1, 200)
+            self.table_widget.setColumnWidth(2, 200)
+            self.table_widget.setColumnWidth(3, 100)
+            self.on_saved_positions_changed()
+
+            # Add a 'Load Position' button (File selector)
+            load_position_button = QPushButton("Load Positions File")
+            load_position_button.clicked.connect(self.on_load_position_button_clicked)
+            main_layout.addWidget(load_position_button)
+
+            # Add a 'Save Position' button (File selector)
+            save_position_button = QPushButton("Save Positions File")
+            save_position_button.clicked.connect(self.on_save_position_button_clicked)
+            main_layout.addWidget(save_position_button)
+
+            # Add a 'New Position' button
+            new_position_button = QPushButton("New Position")
+            new_position_button.clicked.connect(self.on_new_position_button_clicked)
+            main_layout.addWidget(new_position_button)
+
+            # Add table widget to main layout
+            main_layout.addWidget(self.table_widget)
+
+            # On saved positions changed
+            self.module.model.saved_positions_changed.connect(self.on_saved_positions_changed)
+
+
+            self.setLayout(main_layout)
+
+        def file_selector(self, mode) -> str:
+            """Opens a file selector and returns the selected file."""
+            filedialog = QFileDialog()
+            if mode == "load":
+                filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+            elif mode == "save":
+                filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            filedialog.setNameFilter("position files (*.pos)")
+            filedialog.setDefaultSuffix("pos")
+            filedialog.exec()
+            filename = filedialog.selectedFiles()[0]
+            return filename
+
+        def on_load_position_button_clicked(self) -> None:
+            """File picker for loading a position from a file."""
+            filename = self.file_selector("load")
+            logger.debug("Loading position from %s" % filename)
+            self.module.controller.load_positions(filename)
+
+        def on_save_position_button_clicked(self) -> None:
+            """File picker for saving a position to a file."""
+            filename = self.file_selector("save")
+            logger.debug("Saving position to %s" % filename)
+            self.module.controller.save_positions(filename)
+
+        def on_new_position_button_clicked(self) -> None:
+            """Opens a new position dialog."""
+            logger.debug("New position button clicked")
+            self.new_position_window = self.NewPositionWindow(self.module, self)
+            self.new_position_window.show()
+
+
+        def on_saved_positions_changed(self) -> None:
+            """This method is called when the saved positions changed.
+            It updates the table widget.
+            """
+            logger.debug("Updating saved positions table")
+            self.table_widget.clearContents()
+            self.table_widget.setRowCount(0)
+
+            for row, position in enumerate(self.module.model.saved_positions):
+                self.table_widget.insertRow(row)
+                self.table_widget.setItem(row, 0, QTableWidgetItem(str(position.frequency)))
+                self.table_widget.setItem(
+                    row, 1, QTableWidgetItem(position.tuning_position)
+                )
+                self.table_widget.setItem(
+                    row, 2, QTableWidgetItem(position.matching_position)
+                )
+                button = QPushButton("Go")
+                self.table_widget.setCellWidget(row, 3, button)
+            logger.debug("Updated saved positions table")
+
+        class NewPositionWindow(QDialog):
+            def __init__(self, module, parent=None):
+                super().__init__(parent)
+                self.setParent(parent)
+                self.module = module
+                self.setWindowTitle("New Position")
+
+                # Add vertical main layout
+                main_layout = QVBoxLayout()
+
+                # Add horizontal layout for the frequency range
+                frequency_layout = QHBoxLayout()
+                main_layout.addLayout(frequency_layout)
+                frequency_label = QLabel("Frequency")
+                frequency_layout.addWidget(frequency_label)
+                frequency_edit = QLineEdit()
+                frequency_layout.addWidget(frequency_edit)
+                unit_label = QLabel("MHz")
+                frequency_layout.addWidget(unit_label)
+                frequency_layout.addStretch()
+
+                # Add horizontal layout for the calibration type
+                type_layout = QHBoxLayout()
+                main_layout.addLayout(type_layout)
+
+                # Add vertical layout for short calibration
+                tuning_layout = QVBoxLayout()
+                tuning_label = QLabel("Tuning Position")
+                tuning_layout.addWidget(tuning_label)
+                tuning_edit = QLineEdit()
+                tuning_layout.addWidget(tuning_edit)
+                type_layout.addLayout(tuning_layout)
+
+                # Add vertical layout for open calibration
+                matching_layout = QVBoxLayout()
+                matching_label = QLabel("Matching Position")
+                matching_layout.addWidget(matching_label)
+                matching_edit = QLineEdit()
+                matching_layout.addWidget(matching_edit)
+                type_layout.addLayout(matching_layout)
+
+                # Add vertical layout for save calibration
+                data_layout = QVBoxLayout()
+                # Apply button
+                apply_button = QPushButton("Apply")
+                apply_button.clicked.connect(lambda: self.on_apply_button_clicked(frequency_edit.text(), tuning_edit.text(), matching_edit.text()))
+                data_layout.addWidget(apply_button)
+
+                main_layout.addLayout(data_layout)
+
+                self.setLayout(main_layout)
+
+            def on_apply_button_clicked(self, frequency: str, tuning_position: str, matching_position: str) -> None:
+                """This method is called when the apply button is clicked."""
+                self.module.controller.add_position(frequency, tuning_position, matching_position)
+                # Close the calibration window
+                self.close()
     class LoadingSpinner(QDialog):
         """This class implements a spinner dialog that is shown during a frequency sweep."""
 

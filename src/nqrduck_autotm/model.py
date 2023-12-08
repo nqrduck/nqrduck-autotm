@@ -223,6 +223,25 @@ class Stepper:
         self.homed = False
         self.position = 0
 
+class SavedPosition():
+    """This class is used to store a saved position for tuning and matching of electrical probeheads."""
+    def __init__(self, frequency: float, tuning_position : int, matching_position : int) -> None:
+        self.frequency = frequency
+        self.tuning_position = tuning_position
+        self.matching_position = matching_position
+
+    def to_json(self):
+        return {
+            "frequency": self.frequency,
+            "tuning_position": self.tuning_position,
+            "matching_position": self.matching_position,
+        }
+    
+    @classmethod
+    def from_json(cls, json):
+        logger.debug(json)
+        return cls(json[0], json[1], json[2])
+
 class TuningStepper(Stepper):
     TYPE = "Tuning"
     MAX_STEPS = 1e6
@@ -275,6 +294,7 @@ class AutoTMModel(ModuleModel):
     serial_changed = pyqtSignal(QSerialPort)
     data_points_changed = pyqtSignal(list)
     active_stepper_changed = pyqtSignal(Stepper)
+    saved_positions_changed = pyqtSignal(list)
 
     short_calibration_finished = pyqtSignal(S11Data)
     open_calibration_finished = pyqtSignal(S11Data)
@@ -291,6 +311,8 @@ class AutoTMModel(ModuleModel):
         self.tuning_stepper = TuningStepper()
         self.matching_stepper = MatchingStepper()
         self.active_stepper = self.tuning_stepper
+
+        self.saved_positions = []
 
     @property
     def available_devices(self):
@@ -324,6 +346,20 @@ class AutoTMModel(ModuleModel):
         """Clear all data points from the model."""
         self.data_points.clear()
         self.data_points_changed.emit(self.data_points)
+
+    @property
+    def saved_positions(self):
+        return self._saved_positions
+    
+    @saved_positions.setter
+    def saved_positions(self, value):
+        self._saved_positions = value
+        self.saved_positions_changed.emit(value)
+
+    def add_saved_position(self, frequency: float, tuning_position: int, matching_position: int) -> None:
+        """Add a saved position to the model."""
+        self.saved_positions.append(SavedPosition(frequency, tuning_position, matching_position))
+        self.saved_positions_changed.emit(self.saved_positions)
 
     @property
     def measurement(self):
