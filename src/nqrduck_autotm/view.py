@@ -216,10 +216,16 @@ class AutoTMView(ModuleView):
             self._ui_form.decreaseButton.setEnabled(True)
             self._ui_form.increaseButton.setEnabled(True)
             self._ui_form.absoluteGoButton.setEnabled(True)
+            self._ui_form.positionButton.setEnabled(True)
+            self._ui_form.mechLUTButton.setEnabled(True)
+            self._ui_form.viewmechLUTButton.setEnabled(True)
         else:
             self._ui_form.decreaseButton.setEnabled(False)
             self._ui_form.increaseButton.setEnabled(False)
             self._ui_form.absoluteGoButton.setEnabled(False)
+            self._ui_form.positionButton.setEnabled(False)
+            self._ui_form.mechLUTButton.setEnabled(False)
+            self._ui_form.viewmechLUTButton.setEnabled(False)
 
     @pyqtSlot()
     def on_position_button_clicked(self) -> None:
@@ -362,15 +368,16 @@ class AutoTMView(ModuleView):
 
             # Create table widget
             self.table_widget = QTableWidget()
-            self.table_widget.setColumnCount(4)
+            self.table_widget.setColumnCount(5)
             self.table_widget.setHorizontalHeaderLabels(
-                ["Frequency", "Tuning Position", "Matching Position", "Button"]
+                ["Frequency (MHz)", "Tuning Position", "Matching Position", "Button", "Delete"]
             )
 
-            self.table_widget.setColumnWidth(0, 100)
+            self.table_widget.setColumnWidth(0, 150)
             self.table_widget.setColumnWidth(1, 200)
             self.table_widget.setColumnWidth(2, 200)
             self.table_widget.setColumnWidth(3, 100)
+            self.table_widget.setColumnWidth(4, 100)
             self.on_saved_positions_changed()
 
             # Add a 'Load Position' button (File selector)
@@ -446,8 +453,22 @@ class AutoTMView(ModuleView):
                 self.table_widget.setItem(
                     row, 2, QTableWidgetItem(position.matching_position)
                 )
-                button = QPushButton("Go")
-                self.table_widget.setCellWidget(row, 3, button)
+                go_button = QPushButton("Go")
+                go_button.clicked.connect(
+                    lambda _, position=position: self.module.controller.on_go_to_position(
+                        position
+                    )
+                )
+                self.table_widget.setCellWidget(row, 3, go_button)
+
+                delete_button = QPushButton("Delete")
+                delete_button.clicked.connect(
+                    lambda _, position=position: self.module.controller.on_delete_position(
+                        position
+                    )
+                )
+                self.table_widget.setCellWidget(row, 4, delete_button)
+                
             logger.debug("Updated saved positions table")
 
         class NewPositionWindow(QDialog):

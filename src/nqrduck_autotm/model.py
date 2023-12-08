@@ -236,11 +236,6 @@ class SavedPosition():
             "tuning_position": self.tuning_position,
             "matching_position": self.matching_position,
         }
-    
-    @classmethod
-    def from_json(cls, json):
-        logger.debug(json)
-        return cls(json[0], json[1], json[2])
 
 class TuningStepper(Stepper):
     TYPE = "Tuning"
@@ -359,6 +354,11 @@ class AutoTMModel(ModuleModel):
     def add_saved_position(self, frequency: float, tuning_position: int, matching_position: int) -> None:
         """Add a saved position to the model."""
         self.saved_positions.append(SavedPosition(frequency, tuning_position, matching_position))
+        self.saved_positions_changed.emit(self.saved_positions)
+
+    def delete_saved_position(self, position: SavedPosition) -> None:
+        """Delete a saved position from the model."""
+        self.saved_positions.remove(position)
         self.saved_positions_changed.emit(self.saved_positions)
 
     @property

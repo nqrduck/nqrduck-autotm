@@ -8,7 +8,7 @@ from PyQt6 import QtSerialPort
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
 from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
-from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable, SavedPosition
+from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable, SavedPosition, Stepper
 
 logger = logging.getLogger(__name__)
 
@@ -635,41 +635,50 @@ class AutoTMController(ModuleController):
         elif stepper == "matching":
             self.module.model.active_stepper = self.module.model.matching_stepper
 
-    def validate_position(self, future_position: int) -> bool:
+    def validate_position(self, future_position: int, stepper  : Stepper) -> bool:
         """Validate the stepper's future position."""
         if future_position < 0:
             self.module.view.add_error_text("Could not move stepper. Stepper position cannot be negative")
             return False
 
-        if future_position > self.module.model.active_stepper.MAX_STEPS:
-            self.module.view.add_error_text(f"Could not move stepper. Stepper position cannot be larger than {self.module.model.active_stepper.MAX_STEPS}")
+        if future_position > stepper.MAX_STEPS:
+            self.module.view.add_error_text(f"Could not move stepper. Stepper position cannot be larger than {stepper.MAX_STEPS}")
             return False
 
         return True
 
-    def calculate_steps_for_absolute_move(self, target_position: int) -> int:
+    def calculate_steps_for_absolute_move(self, target_position: int, stepper : Stepper) -> int:
         """Calculate the number of steps for an absolute move."""
-        current_position = self.module.model.active_stepper.position
+        current_position = stepper.position
         return target_position - current_position
 
-    def send_stepper_command(self, steps: int) -> None:
+    def send_stepper_command(self, steps: int, stepper : Stepper) -> None:
         """Send a command to the stepper motor based on the number of steps."""
-        motor_identifier = self.module.model.active_stepper.TYPE.lower()[0]
+        motor_identifier = stepper.TYPE.lower()[0]
         command = f"m{motor_identifier}{steps}"
-        self.send_command(command)
+        confirmation = self.send_command(command)
+        return confirmation
 
-    def on_relative_move(self, steps: str) -> None:
+    def on_relative_move(self, steps: str, stepper : Stepper = None ) -> None:
         """This method is called when the relative move button is pressed."""
-        future_position = self.module.model.active_stepper.position + int(steps)
-        if self.validate_position(future_position):
-            self.send_stepper_command(int(steps))  # Convert the steps string to an integer
+        if stepper is None:
+            stepper = self.module.model.active_stepper
 
-    def on_absolute_move(self, steps: str) -> None:
+        future_position = stepper.position + int(steps)
+        if self.validate_position(future_position, stepper):
+            confirmation = self.send_stepper_command(int(steps), stepper)  # Convert the steps string to an integer
+            return confirmation
+
+    def on_absolute_move(self, steps: str, stepper : Stepper = None ) -> None:
         """This method is called when the absolute move button is pressed."""
+        if stepper is None:
+            stepper = self.module.model.active_stepper
+
         future_position = int(steps)
-        if self.validate_position(future_position):
-            actual_steps = self.calculate_steps_for_absolute_move(future_position)
-            self.send_stepper_command(actual_steps)
+        if self.validate_position(future_position, stepper):
+            actual_steps = self.calculate_steps_for_absolute_move(future_position, stepper)
+            confirmation = self.send_stepper_command(actual_steps, stepper)
+            return confirmation
 
     def load_positions(self, path : str) -> None:
         """Load the saved positions from a json file.
@@ -679,7 +688,7 @@ class AutoTMController(ModuleController):
         """
         # First clear the old positions
         self.module.model.saved_positions = []
-        
+
         with open(path, "r") as f:
             positions = json.load(f)
             for position in positions:
@@ -708,6 +717,26 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Adding new position at %s MHz", frequency)
         self.module.model.add_saved_position(frequency, tuning_position, matching_position)
+
+    def on_go_to_position(self, position: SavedPosition) -> None:
+        """Go to the specified position.
+        
+        Args:
+            position (SavedPosition): The position to go to.
+        """
+        logger.debug("Going to position: %s", position)
+        confirmation = self.on_absolute_move(position.tuning_position, self.module.model.tuning_stepper)
+        if confirmation:
+            self.on_absolute_move(position.matching_position, self.module.model.matching_stepper)
+
+    def on_delete_position(self, position: SavedPosition) -> None:
+        """Delete the specified position.
+        
+        Args:
+            position (SavedPosition): The position to delete.
+        """
+        logger.debug("Deleting position: %s", position)
+        self.module.model.delete_saved_position(position)
 
 
 
