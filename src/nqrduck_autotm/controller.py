@@ -635,64 +635,41 @@ class AutoTMController(ModuleController):
         elif stepper == "matching":
             self.module.model.active_stepper = self.module.model.matching_stepper
 
-    def on_relative_move(self, steps : str) -> None:
-        """This method is called when the relative move button is pressed.
-        
-        Args:
-            steps (str): The number of steps to move the stepper.
-        """
-
-        # First char is the stepper identifier, m for matching and t for tuning
-        motor_identifier = self.module.model.active_stepper.TYPE.lower()[0]
-        
-        # We check if the steps are valid
-        stepper_current_position = self.module.model.active_stepper.position
-        
-        future_position = stepper_current_position + int(steps)
-
+    def validate_position(self, future_position: int) -> bool:
+        """Validate the stepper's future position."""
         if future_position < 0:
-            error = "Could not move stepper. Stepper position cannot be negative"
-            self.module.view.add_info_text(error)
-            return
-        
+            self.module.view.add_error_text("Could not move stepper. Stepper position cannot be negative")
+            return False
+
         if future_position > self.module.model.active_stepper.MAX_STEPS:
-            error = f"Could not move stepper. Stepper position cannot be larger than {self.module.model.active_stepper.MAX_STEPS}"
-            self.module.view.add_info_text(error)
-            return
-        
-        # We send the command to the atm system, the first m identifies this is a move command
+            self.module.view.add_error_text(f"Could not move stepper. Stepper position cannot be larger than {self.module.model.active_stepper.MAX_STEPS}")
+            return False
+
+        return True
+
+    def calculate_steps_for_absolute_move(self, target_position: int) -> int:
+        """Calculate the number of steps for an absolute move."""
+        current_position = self.module.model.active_stepper.position
+        return target_position - current_position
+
+    def send_stepper_command(self, steps: int) -> None:
+        """Send a command to the stepper motor based on the number of steps."""
+        motor_identifier = self.module.model.active_stepper.TYPE.lower()[0]
         command = f"m{motor_identifier}{steps}"
         self.send_command(command)
 
-    def on_absolute_move(self, steps : str) -> None:
-        """This method is called when the absolute move button is pressed.
-        
-        Args:
-            steps (str): The number of steps to move the stepper.
-        """
+    def on_relative_move(self, steps: str) -> None:
+        """This method is called when the relative move button is pressed."""
+        future_position = self.module.model.active_stepper.position + int(steps)
+        if self.validate_position(future_position):
+            self.send_stepper_command(int(steps))  # Convert the steps string to an integer
 
-        # First char is the stepper identifier, m for matching and t for tuning
-        motor_identifier = self.module.model.active_stepper.TYPE.lower()[0]
-        
-        # We check if the steps are valid 
+    def on_absolute_move(self, steps: str) -> None:
+        """This method is called when the absolute move button is pressed."""
         future_position = int(steps)
+        if self.validate_position(future_position):
+            actual_steps = self.calculate_steps_for_absolute_move(future_position)
+            self.send_stepper_command(actual_steps)
 
-        if future_position < 0:
-            error = "Could not move stepper. Stepper position cannot be negative"
-            self.module.view.add_info_text(error)
-            return
-        
-        if future_position > self.module.model.active_stepper.MAX_STEPS:
-            error = f"Could not move stepper. Stepper position cannot be larger than {self.module.model.active_stepper.MAX_STEPS}"
-            self.module.view.add_info_text(error)
-            return
-        
-        # We calculate the number of steps to move
-        stepper_current_position = self.module.model.active_stepper.position
-        steps = future_position - stepper_current_position
-
-        # We send the command to the atm system, the first m identifies this is a move command
-        command = f"m{motor_identifier}{steps}"
-        self.send_command(command)
 
 
