@@ -664,4 +664,35 @@ class AutoTMController(ModuleController):
         command = f"m{motor_identifier}{steps}"
         self.send_command(command)
 
+    def on_absolute_move(self, steps : str) -> None:
+        """This method is called when the absolute move button is pressed.
+        
+        Args:
+            steps (str): The number of steps to move the stepper.
+        """
+
+        # First char is the stepper identifier, m for matching and t for tuning
+        motor_identifier = self.module.model.active_stepper.TYPE.lower()[0]
+        
+        # We check if the steps are valid 
+        future_position = int(steps)
+
+        if future_position < 0:
+            error = "Could not move stepper. Stepper position cannot be negative"
+            self.module.view.add_info_text(error)
+            return
+        
+        if future_position > self.module.model.active_stepper.MAX_STEPS:
+            error = f"Could not move stepper. Stepper position cannot be larger than {self.module.model.active_stepper.MAX_STEPS}"
+            self.module.view.add_info_text(error)
+            return
+        
+        # We calculate the number of steps to move
+        stepper_current_position = self.module.model.active_stepper.position
+        steps = future_position - stepper_current_position
+
+        # We send the command to the atm system, the first m identifies this is a move command
+        command = f"m{motor_identifier}{steps}"
+        self.send_command(command)
+
 
