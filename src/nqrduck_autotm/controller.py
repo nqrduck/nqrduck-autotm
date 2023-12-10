@@ -619,6 +619,7 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Homing")
         self.send_command("h")
+        self.module.model.tuning_stepper.last_direction = 1
 
     @pyqtSlot(str)
     def on_stepper_changed(self, stepper: str) -> None:
@@ -654,6 +655,18 @@ class AutoTMController(ModuleController):
 
     def send_stepper_command(self, steps: int, stepper : Stepper) -> None:
         """Send a command to the stepper motor based on the number of steps."""
+        # Here we handle backlash of the tuner
+        # Determine the direction of the current steps
+        current_direction = np.sign(steps)  # This will be -1,or 1
+        if stepper.TYPE == "Tuning":
+            logger.debug("Stepper last direction: %s", stepper.last_direction)
+            logger.debug("Current direction: %s", current_direction)
+            if stepper.last_direction != current_direction:
+                steps = (abs(steps) + stepper.BACKLASH_STEPS) * current_direction
+
+            stepper.last_direction = current_direction
+            logger.debug("Stepper last direction: %s", stepper.last_direction)
+
         motor_identifier = stepper.TYPE.lower()[0]
         command = f"m{motor_identifier}{steps}"
         confirmation = self.send_command(command)
@@ -737,6 +750,23 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Deleting position: %s", position)
         self.module.model.delete_saved_position(position)
+
+    def generate_mech_lut(self, start_frequency: str, stop_frequency: str, frequency_step: str) -> None:
+        """Generate a lookup table for the specified frequency range and voltage resolution.
+        
+        Args:
+            start_frequency (str): The start frequency in Hz.
+            stop_frequency (str): The stop frequency in Hz.
+            frequency_step (str): The frequency step in Hz.
+        """
+        logger.debug("Generating mech LUT")
+
+        # We create the lookup table
+        LUT = MechanicalLookupTable(
+            start_frequency, stop_frequency, frequency_step
+        )
+
+        
 
 
 

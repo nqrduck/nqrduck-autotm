@@ -240,7 +240,13 @@ class SavedPosition():
 class TuningStepper(Stepper):
     TYPE = "Tuning"
     MAX_STEPS = 1e6
+    BACKLASH_STEPS = 45
 
+    def __init__(self) -> None:
+        super().__init__()
+        # Backlash stepper 
+        self.last_direction = None
+    
 class MatchingStepper(Stepper):
     TYPE = "Matching"
     MAX_STEPS = 1e6
@@ -285,6 +291,7 @@ class MechanicalLookupTable(LookupTable):
     TYPE = "Mechanical"
     pass
 class AutoTMModel(ModuleModel):
+
     available_devices_changed = pyqtSignal(list)
     serial_changed = pyqtSignal(QSerialPort)
     data_points_changed = pyqtSignal(list)
@@ -308,6 +315,9 @@ class AutoTMModel(ModuleModel):
         self.active_stepper = self.tuning_stepper
 
         self.saved_positions = []
+
+        self.el_lut = None
+        self.mech_lut = None
 
     @property
     def available_devices(self):

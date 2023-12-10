@@ -73,6 +73,15 @@ class AutoTMView(ModuleView):
             )
         )
 
+        # On clicking of the generateLUTButton call the generate_lut method
+        self._ui_form.generateLUTButton.clicked.connect(
+            lambda: self.module.controller.generate_mech_lut(
+                self._ui_form.startfrequencyBox.text(),
+                self._ui_form.stopfrequencyBox.text(),
+                self._ui_form.frequencystepBox.text(),
+            )
+        )
+
         # On clicking of the viewLUTButton call the view_lut method
         self._ui_form.viewelLUTButton.clicked.connect(self.view_el_lut)
 
@@ -351,6 +360,10 @@ class AutoTMView(ModuleView):
     def view_el_lut(self) -> None:
         """Creates a new Dialog that shows the currently active electrical LUT."""
         logger.debug("View LUT")
+        if self.module.model.el_lut is None:
+            logger.debug("No LUT available")
+            self.add_error_text("No LUT available")
+            return
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
 
