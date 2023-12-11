@@ -64,18 +64,18 @@ class AutoTMView(ModuleView):
             )
         )
 
-        # On clicking of the generateLUTButton call the generate_lut method
+        # On clicking of the generateLUTButton call the generate_mechanical_lut method
         self._ui_form.generateLUTButton.clicked.connect(
-            lambda: self.module.controller.generate_lut(
+            lambda: self.module.controller.generate_electrical_lut(
                 self._ui_form.startfrequencyBox.text(),
                 self._ui_form.stopfrequencyBox.text(),
                 self._ui_form.frequencystepBox.text(),
             )
         )
 
-        # On clicking of the generateLUTButton call the generate_lut method
-        self._ui_form.generateLUTButton.clicked.connect(
-            lambda: self.module.controller.generate_mech_lut(
+        # On clicking of the generateLUTButton call the generate_electrical_lut method
+        self._ui_form.mechLUTButton.clicked.connect(
+            lambda: self.module.controller.generate_mechanical_lut(
                 self._ui_form.startfrequencyBox.text(),
                 self._ui_form.stopfrequencyBox.text(),
                 self._ui_form.frequencystepBox.text(),
@@ -356,6 +356,11 @@ class AutoTMView(ModuleView):
         """Creates a electrical LUT spinner dialog."""
         self.el_LUT_spinner = self.LoadingSpinner("Generating electrical LUT ...", self)
         self.el_LUT_spinner.show()
+
+    def create_mech_LUT_spinner_dialog(self) -> None:
+        """Creates a mechanical LUT spinner dialog."""
+        self.mech_LUT_spinner = self.LoadingSpinner("Generating mechanical LUT ...", self)
+        self.mech_LUT_spinner.show()
 
     def view_el_lut(self) -> None:
         """Creates a new Dialog that shows the currently active electrical LUT."""

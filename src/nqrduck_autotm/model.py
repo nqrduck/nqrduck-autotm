@@ -177,33 +177,6 @@ class LookupTable:
 
         # This is the frequency at which the tuning and matching process was started
         self.started_frequency = None
-
-    def is_incomplete(self) -> bool:
-        """This method returns True if the lookup table is incomplete,
-        i.e. if there are frequencies for which no the tuning or matching voltage is none.
-
-        Returns:
-            bool: True if the lookup table is incomplete, False otherwise.
-        """
-        return any(
-            [
-                tuning_voltage is None or matching_voltage is None
-                for tuning_voltage, matching_voltage in self.data.values()
-            ]
-        )
-
-    def get_next_frequency(self) -> float:
-        """This method returns the next frequency for which the tuning and matching voltage is not yet set.
-
-        Returns:
-            float: The next frequency for which the tuning and matching voltage is not yet set.
-        """
-
-        for frequency, (tuning_voltage, matching_voltage) in self.data.items():
-            if tuning_voltage is None or matching_voltage is None:
-                return frequency
-
-        return None
     
     def get_entry_number(self, frequency: float) -> int:
         """This method returns the entry number of the given frequency.
@@ -286,10 +259,98 @@ class ElectricalLookupTable(LookupTable):
         entry_number = self.get_entry_number(frequency)
         key = list(self.data.keys())[entry_number]
         return self.data[key]
+    
+    def is_incomplete(self) -> bool:
+        """This method returns True if the lookup table is incomplete,
+        i.e. if there are frequencies for which no the tuning or matching voltage is none.
+
+        Returns:
+            bool: True if the lookup table is incomplete, False otherwise.
+        """
+        return any(
+            [
+                tuning_voltage is None or matching_voltage is None
+                for tuning_voltage, matching_voltage in self.data.values()
+            ]
+        )
+
+    def get_next_frequency(self) -> float:
+        """This method returns the next frequency for which the tuning and matching voltage is not yet set.
+
+        Returns:
+            float: The next frequency for which the tuning and matching voltage is not yet set.
+        """
+
+        for frequency, (tuning_voltage, matching_voltage) in self.data.items():
+            if tuning_voltage is None or matching_voltage is None:
+                return frequency
+
+        return None
 
 class MechanicalLookupTable(LookupTable):
+    # Hmm duplicate code
     TYPE = "Mechanical"
-    pass
+    
+
+    def __init__(self, start_frequency: float, stop_frequency: float, frequency_step: float) -> None:
+        super().__init__(start_frequency, stop_frequency, frequency_step)
+        self.init_positions()
+
+    def init_positions(self) -> None:
+        """Initialize the lookup table with default values."""
+        for frequency in np.arange(
+            self.start_frequency, self.stop_frequency, self.frequency_step
+        ):
+            self.started_frequency = frequency
+            self.add_positions(None, None)
+
+    def add_positions(self, tuning_position: int, matching_position: int) -> None:
+        """Add a tuning and matching position for the last started frequency to the lookup table.
+
+        Args:
+            tuning_position (int): The tuning position for the given frequency.
+            matching_position (int): The matching position for the given frequency."""
+        self.data[self.started_frequency] = (tuning_position, matching_position)
+
+    def get_positions(self, frequency: float) -> tuple:
+        """Get the tuning and matching position for the given frequency.
+
+        Args:
+            frequency (float): The frequency for which the tuning and matching position should be returned.
+
+        Returns:
+            tuple: The tuning and matching position for the given frequency.
+        """
+        entry_number = self.get_entry_number(frequency)
+        key = list(self.data.keys())[entry_number]
+        return self.data[key]
+    
+    def is_incomplete(self) -> bool:
+        """This method returns True if the lookup table is incomplete,
+        i.e. if there are frequencies for which no the tuning or matching position is none.
+
+        Returns:
+            bool: True if the lookup table is incomplete, False otherwise.
+        """
+        return any(
+            [
+                tuning_position is None or matching_position is None
+                for tuning_position, matching_position in self.data.values()
+            ]
+        )
+    
+    def get_next_frequency(self) -> float:
+        """This method returns the next frequency for which the tuning and matching position is not yet set.
+
+        Returns:
+            float: The next frequency for which the tuning and matching position is not yet set.
+        """
+
+        for frequency, (tuning_position, matching_position) in self.data.items():
+            if tuning_position is None or matching_position is None:
+                return frequency
+
+        return None
 class AutoTMModel(ModuleModel):
 
     available_devices_changed = pyqtSignal(list)
@@ -297,6 +358,7 @@ class AutoTMModel(ModuleModel):
     data_points_changed = pyqtSignal(list)
     active_stepper_changed = pyqtSignal(Stepper)
     saved_positions_changed = pyqtSignal(list)
+    serial_data_received = pyqtSignal(str)
 
     short_calibration_finished = pyqtSignal(S11Data)
     open_calibration_finished = pyqtSignal(S11Data)
@@ -318,6 +380,7 @@ class AutoTMModel(ModuleModel):
 
         self.el_lut = None
         self.mech_lut = None
+        self.waiting_for_reflection = False
 
     @property
     def available_devices(self):
