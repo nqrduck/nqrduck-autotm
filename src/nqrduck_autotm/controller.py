@@ -28,6 +28,7 @@ class AutoTMController(ModuleController):
         self.module.model.serial_data_received.connect(self.process_frequency_sweep_data)
         self.module.model.serial_data_received.connect(self.process_measurement_data)
         self.module.model.serial_data_received.connect(self.process_calibration_data)
+        self.module.model.serial_data_received.connect(self.process_voltage_sweep_result)
         self.module.model.serial_data_received.connect(self.print_info)
         self.module.model.serial_data_received.connect(self.read_position_data)
         self.module.model.serial_data_received.connect(self.process_reflection_data)
@@ -921,6 +922,8 @@ class AutoTMController(ModuleController):
         # Now we tune and match our probe coil for every frequency
         stepper = self.module.model.tuning_stepper
         new_magnitude = 1e6 # Big
+
+        # Probably also start a frequency sweep (?)
 
         while new_magnitude > last_magnitude:
             # We move the stepper
