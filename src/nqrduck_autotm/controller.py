@@ -1,4 +1,5 @@
 import logging
+import time
 import numpy as np
 import json
 import time
@@ -29,6 +30,7 @@ class AutoTMController(ModuleController):
         self.module.model.serial_data_received.connect(self.process_calibration_data)
         self.module.model.serial_data_received.connect(self.print_info)
         self.module.model.serial_data_received.connect(self.read_position_data)
+        self.module.model.serial_data_received.connect(self.process_reflection_data)
 
     @pyqtSlot(str, object)
     def process_signals(self, key: str, value: object) -> None:
@@ -299,9 +301,6 @@ class AutoTMController(ModuleController):
     def on_ready_read(self) -> None:
         """This method is called when data is received from the serial connection."""
         serial = self.module.model.serial
-        if self.module.model.waiting_for_reflection:
-            logger.debug("Waiting for reflection data")
-            return
         
         while serial.canReadLine():
             text = serial.readLine().data().decode().rstrip("\r\n")
@@ -309,6 +308,7 @@ class AutoTMController(ModuleController):
 
             self.module.model.serial_data_received.emit(text)
 
+    @pyqtSlot(str)
     def process_reflection_data(self, text):
         """This method is called when data is received from the serial connection.
         It processes the data and adds it to the model.
@@ -316,9 +316,10 @@ class AutoTMController(ModuleController):
         Args:
             text (str): The data received from the serial connection.
         """
-        text = text[1:]
-        return_loss, phase = map(float, text.split("p"))
-        self.module.model.last_reflection = (return_loss, phase)
+        if text.startswith("m"):
+            text = text[1:]
+            return_loss, phase = map(float, text.split("p"))
+            self.module.model.last_reflection = (return_loss, phase)
 
     ### Calibration Stuff ###
 
@@ -724,25 +725,49 @@ class AutoTMController(ModuleController):
         confirmation = self.send_command(command)
         return confirmation
 
-    def on_relative_move(self, steps: str, stepper : Stepper = None ) -> None:
+    def on_relative_move(self, steps: str, stepper: Stepper = None) -> None:
         """This method is called when the relative move button is pressed."""
+        timeout_duration = 15  # timeout in seconds
+        start_time = time.time()
+
         if stepper is None:
             stepper = self.module.model.active_stepper
 
+        stepper_position = stepper.position
         future_position = stepper.position + int(steps)
         if self.validate_position(future_position, stepper):
             confirmation = self.send_stepper_command(int(steps), stepper)  # Convert the steps string to an integer
+
+            while stepper_position == stepper.position:
+                QApplication.processEvents()
+                # Check for timeout
+                if time.time() - start_time > timeout_duration:
+                    logger.error("Relative move timed out")
+                    break  # or handle timeout differently
+
             return confirmation
 
-    def on_absolute_move(self, steps: str, stepper : Stepper = None ) -> None:
+    def on_absolute_move(self, steps: str, stepper: Stepper = None) -> None:
         """This method is called when the absolute move button is pressed."""
+        timeout_duration = 15  # timeout in seconds
+        start_time = time.time()
+
         if stepper is None:
             stepper = self.module.model.active_stepper
 
+        stepper_position = stepper.position
         future_position = int(steps)
         if self.validate_position(future_position, stepper):
             actual_steps = self.calculate_steps_for_absolute_move(future_position, stepper)
             confirmation = self.send_stepper_command(actual_steps, stepper)
+
+            while stepper_position == stepper.position:
+                QApplication.processEvents()
+                # Check for timeout
+                if time.time() - start_time > timeout_duration:
+                    logger.error("Absolute move timed out")
+                    break  # or handle timeout differently
+
             return confirmation
 
     ### Position Saving and Loading ###
@@ -877,50 +902,78 @@ class AutoTMController(ModuleController):
         LUT.started_frequency = next_frequency
         logger.debug("Starting next mechanical tuning and matching:")
 
+        def get_magnitude(reflection):
+            CENTER_POINT_MAGNITUDE = 900  # mV
+            MAGNITUDE_SLOPE = 30  # dB/mV
+            return (reflection[0] - CENTER_POINT_MAGNITUDE) / MAGNITUDE_SLOPE
+
         # Now we vary the tuning capacitor position and matching capacitor position
         # Step size tuner:
-        TUNER_STEP_SIZE = 10
+        TUNER_STEP_SIZE = 20
 
         # Step size matcher:
-        MATCHER_STEP_SIZE = 50
+        MATCHER_STEP_SIZE = 5
 
         # We read the first reflection
-        reflection = self.read_reflection(next_frequency)
-        logger.debug("Reflection: %s", reflection)
+        last_reflection = self.read_reflection(next_frequency)
+        last_magnitude = get_magnitude(last_reflection)
 
-    def read_reflection(self, frequency):
-        """Read the reflection at the specified frequency."""
+        # Now we tune and match our probe coil for every frequency
+        stepper = self.module.model.tuning_stepper
+        new_magnitude = 1e6 # Big
+
+        while new_magnitude > last_magnitude:
+            # We move the stepper
+            last_magnitude = new_magnitude
+
+            self.on_relative_move(TUNER_STEP_SIZE, stepper)
+
+            # We read the reflection
+            new_magnitude = get_magnitude(self.read_reflection(next_frequency))
+
+        # We move the stepper back
+        self.on_relative_move(-TUNER_STEP_SIZE, stepper)
+        logger.debug("Tuning capacitor position: %s", stepper.position)
+
+    def read_reflection(self, frequency) -> tuple:
+        """Starts a reflection measurement and reads the reflection at the specified frequency."""
         # We send the command to the atm system
-        self.module.model.waiting_for_reflection = True
-
         command = f"r{frequency}"
         try:
-                
             confirmation = self.send_command(command)
             if confirmation:
-                if self.module.model.serial.waitForReadyRead(1000):
-                    #if self.module.model.serial.canReadLine():
-                    text = self.module.model.serial.readLine().data().decode("utf-8")
-                    if text:
-                        logger.debug("Received reflection: %s", text)
-                    #self.module.model.waiting_for_reflection = False
-                    #return text
-                    #else:
-                    time.sleep(0.1)
+                reflection = self.module.model.last_reflection
+
+                # Set the timeout duration (e.g., 5 seconds)
+                timeout_duration = 5
+                # Record the start time
+                start_time = time.time()
+
+                # Wait for reflection data until the timeout is reached
+                while reflection is None:
+                    # Check if the timeout has been reached
+                    if time.time() - start_time > timeout_duration:
+                        logger.error("Reading reflection timed out after %d seconds", timeout_duration)
+                        self.module.view.add_error_text(f"Could not read reflection. Timed out after {timeout_duration} seconds")
+                        return None
+
+                    # Refresh the reflection data
+                    reflection = self.module.model.last_reflection
+                    QApplication.processEvents()
+
+                # Reset the reflection cache
+                self.module.model.last_reflection = None
+
+                return reflection
+
             else:
                 logger.error("Could not read reflection. No confirmation received")
                 self.module.view.add_error_text("Could not read reflection. No confirmation received")
-                self.module.model.waiting_for_reflection = False
                 return None
-        
+
         except Exception as e:
             logger.error("Could not read reflection. %s", e)
-            self.module.view.add_error_text("Could not read reflection. %s" % e)
-            self.module.model.waiting_for_reflection = False
+            self.module.view.add_error_text(f"Could not read reflection. {e}")
             return None
-
-
-
-
 
 

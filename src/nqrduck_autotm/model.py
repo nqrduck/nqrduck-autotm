@@ -380,7 +380,7 @@ class AutoTMModel(ModuleModel):
 
         self.el_lut = None
         self.mech_lut = None
-        self.waiting_for_reflection = False
+        self.last_reflection = None
 
     @property
     def available_devices(self):
