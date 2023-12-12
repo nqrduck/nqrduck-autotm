@@ -48,10 +48,18 @@ class AutoTMController(ModuleController):
             return
         elif self.module.model.LUT.TYPE == "Electrical":
             tunning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
-            self.set_voltages(str(tunning_voltage), str(matching_voltage))
+            confirmation = self.set_voltages(str(tunning_voltage), str(matching_voltage))
+            if confirmation:
+                reflection = self.read_reflection(frequency)
+                self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
         elif self.module.model.LUT.TYPE == "Mechanical":
-            pass
+            tuning_position, matching_position = self.module.model.LUT.get_positions(frequency)
+            self.go_to_position(tuning_position, matching_position)
+
+            reflection = self.read_reflection(frequency)
+
+            self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
     def find_devices(self) -> None:
         """Scan for available serial devices and add them to the model as available devices."""
@@ -520,8 +528,10 @@ class AutoTMController(ModuleController):
         confirmation = self.send_command(command)
         if confirmation:
             logger.debug("Voltages set successfully")
+            return True
             # Emit  nqrduck signal that T&M was successful
-            self.module.nqrduck_signal.emit("confirm_tune_and_match", None)
+            # Maybe we measure the reflection first so we don't damage the PA lol
+            # The broadband module can then decide what to do with the signal
 
     ### Electrical Lookup Table ###
 
@@ -967,6 +977,7 @@ class AutoTMController(ModuleController):
         self.module.model.mech_lut = LUT
         self.module.model.LUT = LUT
         self.module.view.mech_LUT_spinner.hide()
+        self.module.nqrduck_signal.emit("LUT_finished", LUT)
 
     def go_to_position(self, tuning_position : int, matching_position : int) -> None:
         """Go to the specified position.
@@ -976,11 +987,13 @@ class AutoTMController(ModuleController):
         """
         confirmation = self.on_absolute_move(tuning_position, self.module.model.tuning_stepper)
         if confirmation:
-            self.on_absolute_move(matching_position, self.module.model.matching_stepper)
+            confirmation = self.on_absolute_move(matching_position, self.module.model.matching_stepper)
+            if confirmation:
+                return True
 
     
     # This method isn't used anymore but it might be useful in the future so I'll keep it here
-    def read_reflection(self, frequency) -> tuple:
+    def read_reflection(self, frequency) -> float:
         """Starts a reflection measurement and reads the reflection at the specified frequency."""
         # We send the command to the atm system
         command = f"r{frequency}"
@@ -1009,7 +1022,12 @@ class AutoTMController(ModuleController):
                 # Reset the reflection cache
                 self.module.model.last_reflection = None
 
-                return reflection
+                magnitude = reflection[0]
+                CENTER_POINT_MAGNITUDE = 900  # mV
+                MAGNITUDE_SLOPE = 30  # dB/mV
+                magnitude = (magnitude - CENTER_POINT_MAGNITUDE) / MAGNITUDE_SLOPE
+
+                return -magnitude
 
             else:
                 logger.error("Could not read reflection. No confirmation received")

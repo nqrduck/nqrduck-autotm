@@ -240,7 +240,7 @@ class ElectricalLookupTable(LookupTable):
     def init_voltages(self) -> None:
         """Initialize the lookup table with default values."""
         for frequency in np.arange(
-            self.start_frequency, self.stop_frequency, self.frequency_step
+            self.start_frequency, self.stop_frequency + self.frequency_step, self.frequency_step
         ):
             self.started_frequency = frequency
             self.add_voltages(None, None)
@@ -305,7 +305,7 @@ class MechanicalLookupTable(LookupTable):
     def init_positions(self) -> None:
         """Initialize the lookup table with default values."""
         for frequency in np.arange(
-            self.start_frequency, self.stop_frequency, self.frequency_step
+            self.start_frequency, self.stop_frequency + self.frequency_step, self.frequency_step
         ):
             self.started_frequency = frequency
             self.add_positions(None, None)
