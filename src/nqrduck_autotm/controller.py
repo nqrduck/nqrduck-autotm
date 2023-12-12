@@ -963,6 +963,16 @@ class AutoTMController(ModuleController):
         self.module.model.LUT = LUT
         # self.module.view.create_mech_LUT_spinner_dialog()
 
+    def go_to_position(self, tuning_position : int, matching_position : int) -> None:
+        """Go to the specified position.
+        
+        Args:
+            position (SavedPosition): The position to go to.
+        """
+        confirmation = self.on_absolute_move(tuning_position, self.module.model.tuning_stepper)
+        if confirmation:
+            self.on_absolute_move(matching_position, self.module.model.matching_stepper)
+
     
     # This method isn't used anymore but it might be useful in the future so I'll keep it here
     def read_reflection(self, frequency) -> tuple:

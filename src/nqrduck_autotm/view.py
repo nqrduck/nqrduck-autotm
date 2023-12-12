@@ -585,6 +585,9 @@ class AutoTMView(ModuleView):
             self.setParent(parent)
             self.setWindowTitle("LUT")
 
+            # Set  size
+            self.resize(800, 800)
+
             # Add vertical main layout
             main_layout = QVBoxLayout()
 
@@ -592,7 +595,12 @@ class AutoTMView(ModuleView):
 
             # Create table widget
             self.table_widget = QTableWidget()
-            self.table_widget.setColumnCount(3)
+            self.table_widget.setColumnCount(4)
+            self.table_widget.setColumnWidth(0, 150)
+            self.table_widget.setColumnWidth(1, 200)
+            self.table_widget.setColumnWidth(2, 200)
+            self.table_widget.setColumnWidth(3, 100)
+
             if LUT.TYPE == "Mechanical":
                 self.table_widget.setHorizontalHeaderLabels(
                     ["Frequency (MHz)", "Tuning Position", "Matching Position"]
@@ -612,14 +620,31 @@ class AutoTMView(ModuleView):
                     row, 2, QTableWidgetItem(str(LUT.data[frequency][1]))
                 )
 
+                # Button to test the specific entry in the LUT
+                test_button = QPushButton("Test")
+                # For electrical probe coils the matching voltage is the first entry in the LUT
+                if LUT.TYPE == "Electrical":
+                    tuning_voltage = str(LUT.data[frequency][1])
+                    matching_voltage = str(LUT.data[frequency][0])
+                    test_button.clicked.connect(
+                        lambda _, tuning_voltage=tuning_voltage, matching_voltage=matching_voltage: self.module.controller.set_voltages(
+                            tuning_voltage, matching_voltage
+                        )
+                    )
+                # For mechanical probe coils the tuning voltage is the first entry in the LUT
+                elif LUT.TYPE == "Mechanical":
+                    tuning_position = str(LUT.data[frequency][0])
+                    matching_position = str(LUT.data[frequency][1])
+                    test_button.clicked.connect(
+                        lambda _, tuning_position=tuning_position, matching_position=matching_position: self.module.controller.go_to_position(
+                            tuning_position, matching_position
+                        )
+                    )
+                
+                self.table_widget.setCellWidget(row, 3, test_button)
+
             # Add table widget to main layout
             main_layout.addWidget(self.table_widget)
-
-            # Add Test LUT button
-            test_lut_button = QPushButton("Test LUT")
-            test_lut_button.clicked.connect(self.test_lut)
-            main_layout.addWidget(test_lut_button)
-
             self.setLayout(main_layout)
 
         def test_lut(self):
