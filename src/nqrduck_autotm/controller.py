@@ -966,7 +966,7 @@ class AutoTMController(ModuleController):
         logger.debug("Finished position sweep")
         self.module.model.mech_lut = LUT
         self.module.model.LUT = LUT
-        self.module.view.el_LUT_spinner.hide()
+        self.module.view.mech_LUT_spinner.hide()
 
     def go_to_position(self, tuning_position : int, matching_position : int) -> None:
         """Go to the specified position.
