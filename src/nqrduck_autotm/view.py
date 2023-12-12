@@ -85,6 +85,8 @@ class AutoTMView(ModuleView):
         # On clicking of the viewLUTButton call the view_lut method
         self._ui_form.viewelLUTButton.clicked.connect(self.view_el_lut)
 
+        self._ui_form.viewmechLUTButton.clicked.connect(self.view_mech_lut)
+
         # On clicking of the setvoltagesButton call the set_voltages method
         self._ui_form.setvoltagesButton.clicked.connect(
             lambda: self.module.controller.set_voltages(
@@ -372,6 +374,16 @@ class AutoTMView(ModuleView):
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
 
+    def view_mech_lut(self) -> None:
+        """Creates a new Dialog that shows the currently active mechanical LUT."""
+        logger.debug("View mechanical LUT")
+        if self.module.model.mech_lut is None:
+            logger.debug("No LUT available")
+            self.add_error_text("No LUT available")
+            return
+        self.lut_window = self.LutWindow(self.module)
+        self.lut_window.show()
+
     class StepperSavedPositionsWindow(QDialog):
         def __init__(self, module, parent=None):
             super().__init__(parent)
@@ -576,13 +588,20 @@ class AutoTMView(ModuleView):
             # Add vertical main layout
             main_layout = QVBoxLayout()
 
+            LUT = self.module.model.LUT
+
             # Create table widget
             self.table_widget = QTableWidget()
             self.table_widget.setColumnCount(3)
-            self.table_widget.setHorizontalHeaderLabels(
-                ["Frequency (MHz)", "Matching Voltage", "Tuning Voltage"]
-            )
-            LUT = self.module.model.LUT
+            if LUT.TYPE == "Mechanical":
+                self.table_widget.setHorizontalHeaderLabels(
+                    ["Frequency (MHz)", "Tuning Position", "Matching Position"]
+                )
+            elif LUT.TYPE == "Electrical":
+                self.table_widget.setHorizontalHeaderLabels(
+                    ["Frequency (MHz)", "Matching Voltage", "Tuning Voltage"]
+                )
+            
             for row, frequency in enumerate(LUT.data.keys()):
                 self.table_widget.insertRow(row)
                 self.table_widget.setItem(row, 0, QTableWidgetItem(str(frequency)))

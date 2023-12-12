@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file '../Modules/nqrduck-autotm/src/nqrduck_autotm/resources/autotm_widget.ui'
+# Form implementation generated from reading ui file 'Modules/nqrduck-autotm/src/nqrduck_autotm/resources/autotm_widget.ui'
 #
 # Created by: PyQt6 UI code generator 6.5.1
 #
@@ -130,7 +130,7 @@ class Ui_Form(object):
         self.gridLayout_4.addWidget(self.label_20, 6, 0, 1, 1)
         self.stepsizeBox = QtWidgets.QSpinBox(parent=self.mechTab)
         self.stepsizeBox.setMinimum(0)
-        self.stepsizeBox.setMaximum(50000)
+        self.stepsizeBox.setMaximum(1000000)
         self.stepsizeBox.setProperty("value", 500)
         self.stepsizeBox.setObjectName("stepsizeBox")
         self.gridLayout_4.addWidget(self.stepsizeBox, 3, 1, 1, 1)

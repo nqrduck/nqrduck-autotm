@@ -224,6 +224,10 @@ class MatchingStepper(Stepper):
     TYPE = "Matching"
     MAX_STEPS = 1e6
 
+    def __init__(self) -> None:
+        super().__init__()
+        self.last_direction = None
+
 class ElectricalLookupTable(LookupTable):
     TYPE = "Electrical"
 
@@ -380,6 +384,8 @@ class AutoTMModel(ModuleModel):
 
         self.el_lut = None
         self.mech_lut = None
+        self.LUT = None
+        
         self.last_reflection = None
 
     @property

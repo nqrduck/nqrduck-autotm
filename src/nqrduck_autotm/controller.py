@@ -32,6 +32,7 @@ class AutoTMController(ModuleController):
         self.module.model.serial_data_received.connect(self.print_info)
         self.module.model.serial_data_received.connect(self.read_position_data)
         self.module.model.serial_data_received.connect(self.process_reflection_data)
+        self.module.model.serial_data_received.connect(self.process_position_sweep_result)
 
     @pyqtSlot(str, object)
     def process_signals(self, key: str, value: object) -> None:
@@ -216,7 +217,7 @@ class AutoTMController(ModuleController):
         if text.startswith("v"):
             text = text[1:].split("t")
             matching_voltage, tuning_voltage = map(float, text)
-            LUT = self.module.model.LUT
+            LUT = self.module.model.el_lut
             logger.debug("Received voltage sweep result: %s %s", matching_voltage, tuning_voltage)
             LUT.add_voltages(matching_voltage, tuning_voltage)
             self.continue_or_finish_voltage_sweep(LUT)
@@ -265,6 +266,7 @@ class AutoTMController(ModuleController):
             LUT (LookupTable): The lookup table that is being generated."""
         logger.debug("Voltage sweep finished")
         self.module.view.el_LUT_spinner.hide()
+        self.module.model.LUT = LUT
         self.module.model.voltage_sweep_stop = time.time()
         duration = self.module.model.voltage_sweep_stop - self.module.model.voltage_sweep_start
         self.module.view.add_info_text(f"Voltage sweep finished in {duration:.2f} seconds")
@@ -596,7 +598,7 @@ class AutoTMController(ModuleController):
         confirmation = self.send_command(command)
         # If the command was send successfully, we set the LUT 
         if confirmation:
-            self.module.model.LUT = LUT
+            self.module.model.el_lut = LUT
             self.module.view.create_el_LUT_spinner_dialog()
 
     def switch_to_preamp(self) -> None:
@@ -674,6 +676,7 @@ class AutoTMController(ModuleController):
         logger.debug("Homing")
         self.send_command("h")
         self.module.model.tuning_stepper.last_direction = 1
+        self.module.model.matching_stepper.last_direction = 1
 
     @pyqtSlot(str)
     def on_stepper_changed(self, stepper: str) -> None:
@@ -711,18 +714,19 @@ class AutoTMController(ModuleController):
         """Send a command to the stepper motor based on the number of steps."""
         # Here we handle backlash of the tuner
         # Determine the direction of the current steps
+        backlash = 0
         current_direction = np.sign(steps)  # This will be -1,or 1
         if stepper.TYPE == "Tuning":
             logger.debug("Stepper last direction: %s", stepper.last_direction)
             logger.debug("Current direction: %s", current_direction)
             if stepper.last_direction != current_direction:
-                steps = (abs(steps) + stepper.BACKLASH_STEPS) * current_direction
+                backlash = stepper.BACKLASH_STEPS * current_direction
 
             stepper.last_direction = current_direction
             logger.debug("Stepper last direction: %s", stepper.last_direction)
 
         motor_identifier = stepper.TYPE.lower()[0]
-        command = f"m{motor_identifier}{steps}"
+        command = f"m{motor_identifier}{steps},{backlash}"
         confirmation = self.send_command(command)
         return confirmation
 
@@ -893,6 +897,8 @@ class AutoTMController(ModuleController):
         # Lock GUI
         # self.module.view.create_mech_LUT_spinner_dialog()
 
+        self.module.model.mech_lut = LUT
+
         self.start_next_mechTM(LUT)
 
 
@@ -903,41 +909,62 @@ class AutoTMController(ModuleController):
         LUT.started_frequency = next_frequency
         logger.debug("Starting next mechanical tuning and matching:")
 
-        def get_magnitude(reflection):
-            CENTER_POINT_MAGNITUDE = 900  # mV
-            MAGNITUDE_SLOPE = 30  # dB/mV
-            return (reflection[0] - CENTER_POINT_MAGNITUDE) / MAGNITUDE_SLOPE
-
         # Now we vary the tuning capacitor position and matching capacitor position
         # Step size tuner:
         TUNER_STEP_SIZE = 20
-
         # Step size matcher:
-        MATCHER_STEP_SIZE = 5
+        MATCHER_STEP_SIZE = 50
 
-        # We read the first reflection
-        last_reflection = self.read_reflection(next_frequency)
-        last_magnitude = get_magnitude(last_reflection)
+        TUNING_RANGE = 60
+        MATCHING_RANGE = 500
 
-        # Now we tune and match our probe coil for every frequency
-        stepper = self.module.model.tuning_stepper
-        new_magnitude = 1e6 # Big
+        tuning_backlash = 45
+        # I'm not sure about this value ...
+        matching_backlash = 0
 
-        # Probably also start a frequency sweep (?)
+        # Command for the position sweep: p<frequency in MHz>t<range>,<step size>,<backlash>,<last_direction>m<range>,<step size>,<backlash>,<last_direction>"
+        tuning_last_direction = self.module.model.tuning_stepper.last_direction
+        matching_last_direction = self.module.model.matching_stepper.last_direction
+        command = f"p{next_frequency}t{TUNING_RANGE},{TUNER_STEP_SIZE},{tuning_backlash},{tuning_last_direction}m{MATCHING_RANGE},{MATCHER_STEP_SIZE},{matching_backlash},{matching_last_direction}"
 
-        while new_magnitude > last_magnitude:
-            # We move the stepper
-            last_magnitude = new_magnitude
+        confirmation = self.send_command(command)
 
-            self.on_relative_move(TUNER_STEP_SIZE, stepper)
+    @pyqtSlot(str)
+    def process_position_sweep_result(self, text):
+        if text.startswith("z"):
+            text = text[1:]
+            # Format is z<tuning_position>,<tuning_last_direction>m<matching_position>,<matching_last_direction>
+            text = text.split("m")
+            tuning_position, tuning_last_direction = map(int, text[0].split(","))
+            matching_position, matching_last_direction = map(int, text[1].split(","))
 
-            # We read the reflection
-            new_magnitude = get_magnitude(self.read_reflection(next_frequency))
+            # Keep backlash compensation consistent
+            self.module.model.tuning_stepper.last_direction = tuning_last_direction
+            self.module.model.matching_stepper.last_direction = matching_last_direction
 
-        # We move the stepper back
-        self.on_relative_move(-TUNER_STEP_SIZE, stepper)
-        logger.debug("Tuning capacitor position: %s", stepper.position)
+            logger.debug("Tuning position: %s, Matching position: %s", tuning_position, matching_position)
 
+            LUT = self.module.model.mech_lut
+            logger.debug("Received position sweep result: %s %s", matching_position, tuning_position)
+            LUT.add_positions(tuning_position, matching_position)
+            self.continue_or_finish_position_sweep(LUT)
+
+    def continue_or_finish_position_sweep(self, LUT):
+        """Continue or finish the position sweep."""
+        if LUT.is_incomplete():
+            self.start_next_mechTM(LUT)
+        else:
+            self.finish_position_sweep(LUT)
+
+    def finish_position_sweep(self, LUT):
+        """Finish the position sweep."""
+        logger.debug("Finished position sweep")
+        self.module.model.mech_lut = LUT
+        self.module.model.LUT = LUT
+        # self.module.view.create_mech_LUT_spinner_dialog()
+
+    
+    # This method isn't used anymore but it might be useful in the future so I'll keep it here
     def read_reflection(self, frequency) -> tuple:
         """Starts a reflection measurement and reads the reflection at the specified frequency."""
         # We send the command to the atm system
