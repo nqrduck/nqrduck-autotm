@@ -213,7 +213,7 @@ class SavedPosition():
 class TuningStepper(Stepper):
     TYPE = "Tuning"
     MAX_STEPS = 1e6
-    BACKLASH_STEPS = 45
+    BACKLASH_STEPS = 60
 
     def __init__(self) -> None:
         super().__init__()
@@ -223,6 +223,8 @@ class TuningStepper(Stepper):
 class MatchingStepper(Stepper):
     TYPE = "Matching"
     MAX_STEPS = 1e6
+
+    BACKLASH_STEPS = 0
 
     def __init__(self) -> None:
         super().__init__()
@@ -385,7 +387,7 @@ class AutoTMModel(ModuleModel):
         self.el_lut = None
         self.mech_lut = None
         self.LUT = None
-        
+
         self.last_reflection = None
 
     @property

@@ -895,7 +895,7 @@ class AutoTMController(ModuleController):
         )
 
         # Lock GUI
-        # self.module.view.create_mech_LUT_spinner_dialog()
+        self.module.view.create_mech_LUT_spinner_dialog()
 
         self.module.model.mech_lut = LUT
 
@@ -918,7 +918,7 @@ class AutoTMController(ModuleController):
         TUNING_RANGE = 60
         MATCHING_RANGE = 500
 
-        tuning_backlash = 45
+        tuning_backlash = self.module.model.tuning_stepper.BACKLASH_STEPS
         # I'm not sure about this value ...
         matching_backlash = 0
 
@@ -942,6 +942,11 @@ class AutoTMController(ModuleController):
             self.module.model.tuning_stepper.last_direction = tuning_last_direction
             self.module.model.matching_stepper.last_direction = matching_last_direction
 
+            # Update the positions
+            self.module.model.tuning_stepper.position = tuning_position
+            self.module.model.matching_stepper.position = matching_position
+            self.module.view.on_active_stepper_changed()
+
             logger.debug("Tuning position: %s, Matching position: %s", tuning_position, matching_position)
 
             LUT = self.module.model.mech_lut
@@ -961,7 +966,7 @@ class AutoTMController(ModuleController):
         logger.debug("Finished position sweep")
         self.module.model.mech_lut = LUT
         self.module.model.LUT = LUT
-        # self.module.view.create_mech_LUT_spinner_dialog()
+        self.module.view.el_LUT_spinner.hide()
 
     def go_to_position(self, tuning_position : int, matching_position : int) -> None:
         """Go to the specified position.
