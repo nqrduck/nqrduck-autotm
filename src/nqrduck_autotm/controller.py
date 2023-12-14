@@ -50,14 +50,20 @@ class AutoTMController(ModuleController):
             tunning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
             confirmation = self.set_voltages(str(tunning_voltage), str(matching_voltage))
             if confirmation:
+                # We need to change the signal pathway to preamp to measure the reflection
+                self.switch_to_atm()
                 reflection = self.read_reflection(frequency)
+                # We need to change the signal pathway back to atm to perform a measurement
+                self.switch_to_preamp()
                 self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
         elif self.module.model.LUT.TYPE == "Mechanical":
             tuning_position, matching_position = self.module.model.LUT.get_positions(frequency)
             self.go_to_position(tuning_position, matching_position)
-
+            # Switch to atm to measure the reflection
             reflection = self.read_reflection(frequency)
+            # Switch back to preamp to perform a measurement
+            self.switch_to_preamp()
 
             self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
@@ -107,6 +113,10 @@ class AutoTMController(ModuleController):
             self.module.model.serial = serial
 
             logger.debug("Connected to device %s", device)
+
+            # On opening of the command we set the switch position to atm
+            self.switch_to_atm()
+
         except Exception as e:
             logger.error("Could not connect to device %s: %s", device, e)
 
@@ -527,11 +537,11 @@ class AutoTMController(ModuleController):
         command = "v%sv%s" % (matching_voltage, tuning_voltage)
         confirmation = self.send_command(command)
         if confirmation:
+            TIMEOUT = 5 # seconds
+            start_time = time.time()
+
             logger.debug("Voltages set successfully")
             return True
-            # Emit  nqrduck signal that T&M was successful
-            # Maybe we measure the reflection first so we don't damage the PA lol
-            # The broadband module can then decide what to do with the signal
 
     ### Electrical Lookup Table ###
 
@@ -921,11 +931,11 @@ class AutoTMController(ModuleController):
 
         # Now we vary the tuning capacitor position and matching capacitor position
         # Step size tuner:
-        TUNER_STEP_SIZE = 20
+        TUNER_STEP_SIZE = 10
         # Step size matcher:
         MATCHER_STEP_SIZE = 50
 
-        TUNING_RANGE = 60
+        TUNING_RANGE = 40
         MATCHING_RANGE = 500
 
         tuning_backlash = self.module.model.tuning_stepper.BACKLASH_STEPS
