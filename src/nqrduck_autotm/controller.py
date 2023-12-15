@@ -34,6 +34,7 @@ class AutoTMController(ModuleController):
         self.module.model.serial_data_received.connect(self.read_position_data)
         self.module.model.serial_data_received.connect(self.process_reflection_data)
         self.module.model.serial_data_received.connect(self.process_position_sweep_result)
+        self.module.model.serial_data_received.connect(self.process_signalpath_data)
 
     @pyqtSlot(str, object)
     def process_signals(self, key: str, value: object) -> None:
@@ -50,7 +51,6 @@ class AutoTMController(ModuleController):
         elif self.module.model.LUT.TYPE == "Electrical":
             tunning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
             confirmation = self.set_voltages(str(tunning_voltage), str(matching_voltage))
-            # We need to waitfor the voltages to be set it would be nicer to have this confirmed by the ATM
             if confirmation:
                 # We need to change the signal pathway to preamp to measure the reflection
                 self.switch_to_atm()
@@ -62,6 +62,7 @@ class AutoTMController(ModuleController):
         elif self.module.model.LUT.TYPE == "Mechanical":
             tuning_position, matching_position = self.module.model.LUT.get_positions(frequency)
             self.go_to_position(tuning_position, matching_position)
+            self.switch_to_atm()
             # Switch to atm to measure the reflection
             reflection = self.read_reflection(frequency)
             # Switch back to preamp to perform a measurement
@@ -550,17 +551,21 @@ class AutoTMController(ModuleController):
             matching_voltage,
         )
 
+        if tuning_voltage == self.module.model.tuning_voltage and matching_voltage == self.module.model.matching_voltage:
+            logger.debug("Voltages already set")
+            return
+        
         command = "v%sv%s" % (matching_voltage, tuning_voltage)
         
         start_time = time.time()
 
         confirmation = self.send_command(command)
         if confirmation:
-             while matching_voltage == self.module.model.matching_voltage:
+             while matching_voltage == self.module.model.matching_voltage and tuning_voltage == self.module.model.tuning_voltage:
                 QApplication.processEvents()
                 # Check for timeout
                 if time.time() - start_time > timeout_duration:
-                    logger.error("Absolute move timed out")
+                    logger.error("Voltage setting timed out")
                     break  # or handle timeout differently
 
         logger.debug("Voltages set successfully")
@@ -626,6 +631,9 @@ class AutoTMController(ModuleController):
             frequency_step,
         )
 
+        self.switch_to_atm()
+        # self.set_voltages("0", "0")
+
         # We create the lookup table
         LUT = ElectricalLookupTable(
             start_frequency, stop_frequency, frequency_step
@@ -654,15 +662,55 @@ class AutoTMController(ModuleController):
         """This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
         This is the mode for either NQR or NMR measurements or if on wants to check the tuning of the probe coil on a network analyzer.
         """
+        if self.module.model.signal_path == "preamp":
+            logger.debug("Already in preamp")
+            return
+        
+        TIMEOUT = 1  # s
         logger.debug("Switching to preamp")
         self.send_command("cp")
+
+        start_time = time.time()
+        while self.module.model.signal_path != "preamp":
+            QApplication.processEvents()
+            # Check for timeout
+            if time.time() - start_time > TIMEOUT:
+                logger.error("Switching to preamp timed out")
+                break
 
     def switch_to_atm(self) -> None:
         """This method is used to send the command 'ca' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'ATM.
         In this state the atm system can be used to measure the reflection coefficient of the probecoils.
         """
+        if self.module.model.signal_path == "atm":
+            logger.debug("Already in atm mode")
+            return
+        
+        TIMEOUT = 1  # s
         logger.debug("Switching to atm")
         self.send_command("ca")
+
+        start_time = time.time()
+        while self.module.model.signal_path != "atm":
+            QApplication.processEvents()
+            # Check for timeout
+            if time.time() - start_time > TIMEOUT:
+                logger.error("Switching to atm timed out")
+                break
+
+    def process_signalpath_data(self, text : str) -> None:
+        """This method is called when data is received from the serial connection.
+        It processes the data and adds it to the model.
+        
+        Args:
+            text (str): The data received from the serial connection.
+        """
+        if text.startswith("c"):
+            text = text[1:]
+            if text == "p":
+                self.module.model.signal_path = "preamp"
+            elif text == "a":
+                self.module.model.signal_path = "atm"
 
     def send_command(self, command: str) -> bool:
         """This method is used to send a command to the active serial connection.
@@ -938,6 +986,8 @@ class AutoTMController(ModuleController):
             frequency_step,
         )
 
+        self.switch_to_atm()
+
         # We create the lookup table
         LUT = MechanicalLookupTable(
             start_frequency, stop_frequency, frequency_step
@@ -1038,6 +1088,7 @@ class AutoTMController(ModuleController):
         command = f"r{frequency}"
         try:
             confirmation = self.send_command(command)
+            QApplication.processEvents()
             if confirmation:
                 reflection = self.module.model.last_reflection
 

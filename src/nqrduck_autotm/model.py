@@ -393,6 +393,9 @@ class AutoTMModel(ModuleModel):
         self.tuning_voltage = None
         self.matching_voltage = None
 
+        # AutoTM system or preamp
+        self.signal_path = None
+
     @property
     def available_devices(self):
         return self._available_devices
