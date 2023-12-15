@@ -68,7 +68,10 @@ class AutoTMController(ModuleController):
             # Switch back to preamp to perform a measurement
             self.switch_to_preamp()
 
-            self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
+            # The Lime doesn"t like it if we send the command to switch to atm and then immediately send the command to measure the reflection.
+            # So we wait a bit before starting the measurement
+
+            QTimer.singleShot(100, lambda: self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection))
 
     def find_devices(self) -> None:
         """Scan for available serial devices and add them to the model as available devices."""
