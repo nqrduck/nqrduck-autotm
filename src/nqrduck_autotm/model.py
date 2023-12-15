@@ -390,6 +390,9 @@ class AutoTMModel(ModuleModel):
 
         self.last_reflection = None
 
+        self.tuning_voltage = None
+        self.matching_voltage = None
+
     @property
     def available_devices(self):
         return self._available_devices

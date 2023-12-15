@@ -7,6 +7,7 @@ from serial.tools.list_ports import comports
 from PyQt6.QtTest import QTest
 from PyQt6 import QtSerialPort
 from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
 from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable, SavedPosition, Stepper
@@ -49,6 +50,7 @@ class AutoTMController(ModuleController):
         elif self.module.model.LUT.TYPE == "Electrical":
             tunning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
             confirmation = self.set_voltages(str(tunning_voltage), str(matching_voltage))
+            # We need to waitfor the voltages to be set it would be nicer to have this confirmed by the ATM
             if confirmation:
                 reflection = self.read_reflection(frequency)
                 self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
@@ -226,9 +228,14 @@ class AutoTMController(ModuleController):
             text = text[1:].split("t")
             matching_voltage, tuning_voltage = map(float, text)
             LUT = self.module.model.el_lut
-            logger.debug("Received voltage sweep result: %s %s", matching_voltage, tuning_voltage)
-            LUT.add_voltages(matching_voltage, tuning_voltage)
-            self.continue_or_finish_voltage_sweep(LUT)
+            if LUT is not None:
+                if LUT.is_incomplete():
+                        logger.debug("Received voltage sweep result: %s %s", matching_voltage, tuning_voltage)
+                        LUT.add_voltages(matching_voltage, tuning_voltage)
+                        self.continue_or_finish_voltage_sweep(LUT)
+
+            self.module.model.tuning_voltage = tuning_voltage
+            self.module.model.matching_voltage = matching_voltage
 
     def finish_frequency_sweep(self):
         """This method is called when a frequency sweep is finished.
@@ -261,7 +268,14 @@ class AutoTMController(ModuleController):
             LUT (LookupTable): The lookup table that is being generated.
         """
         next_frequency = LUT.get_next_frequency()
-        command = f"s{next_frequency}"
+        # We write the first command to the serial connection
+        if self.module.view._ui_form.prevVoltagecheckBox.isChecked():
+            # Command format is s<frequency in MHz>o<optional tuning voltage>o<optional matching voltage>
+            # We use the currently set voltages
+            command = "s%so%so%s" % (next_frequency, self.module.model.tuning_voltage, self.module.model.matching_voltage)
+        else:
+            command = "s%s" % (next_frequency)
+            
         LUT.started_frequency = next_frequency
         logger.debug("Starting next voltage sweep: %s", command)
         self.send_command(command)
@@ -493,6 +507,8 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Setting voltages")
         MAX_VOLTAGE = 5  # V
+        timeout_duration = 15  # timeout in seconds
+
         try:
             tuning_voltage = tuning_voltage.replace(",", ".")
             matching_voltage = matching_voltage.replace(",", ".")
@@ -525,13 +541,20 @@ class AutoTMController(ModuleController):
         )
 
         command = "v%sv%s" % (matching_voltage, tuning_voltage)
+        
+        start_time = time.time()
+
         confirmation = self.send_command(command)
         if confirmation:
-            logger.debug("Voltages set successfully")
-            return True
-            # Emit  nqrduck signal that T&M was successful
-            # Maybe we measure the reflection first so we don't damage the PA lol
-            # The broadband module can then decide what to do with the signal
+             while matching_voltage == self.module.model.matching_voltage:
+                QApplication.processEvents()
+                # Check for timeout
+                if time.time() - start_time > timeout_duration:
+                    logger.error("Absolute move timed out")
+                    break  # or handle timeout differently
+
+        logger.debug("Voltages set successfully")
+        return confirmation
 
     ### Electrical Lookup Table ###
 
@@ -601,7 +624,13 @@ class AutoTMController(ModuleController):
         LUT.started_frequency = start_frequency
 
         # We write the first command to the serial connection
-        command = "s%s" % (start_frequency)
+        if self.module.view._ui_form.prevVoltagecheckBox.isChecked():
+            # Command format is s<frequency in MHz>o<optional tuning voltage>o<optional matching voltage>
+            # We use the currently set voltages
+            logger.debug("Starting preset Voltage sweep with voltage Tuning: %s V and Matching: %s V", self.module.model.tuning_voltage, self.module.model.matching_voltage)
+            command = "s%so%so%s" % (start_frequency, self.module.model.tuning_voltage, self.module.model.matching_voltage)
+        else:
+            command = "s%s" % (start_frequency)
         
         # For timing of the voltage sweep
         self.module.model.voltage_sweep_start = time.time()
