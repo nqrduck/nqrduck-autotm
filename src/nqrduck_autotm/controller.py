@@ -49,8 +49,8 @@ class AutoTMController(ModuleController):
             logger.error("Could not tune and match. No LUT available.")
             return
         elif self.module.model.LUT.TYPE == "Electrical":
-            tunning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
-            confirmation = self.set_voltages(str(tunning_voltage), str(matching_voltage))
+            tuning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
+            confirmation = self.set_voltages(str(tuning_voltage), str(matching_voltage))
             if confirmation:
                 # We need to change the signal pathway to preamp to measure the reflection
                 self.switch_to_atm()
@@ -119,6 +119,8 @@ class AutoTMController(ModuleController):
 
             # On opening of the command we set the switch position to atm
             self.switch_to_atm()
+
+            self.set_voltages("0", "0")
 
         except Exception as e:
             logger.error("Could not connect to device %s: %s", device, e)
@@ -237,16 +239,17 @@ class AutoTMController(ModuleController):
         """
         if text.startswith("v"):
             text = text[1:].split("t")
-            matching_voltage, tuning_voltage = map(float, text)
+            tuning_voltage, matching_voltage = map(float, text)
             LUT = self.module.model.el_lut
             if LUT is not None:
                 if LUT.is_incomplete():
-                        logger.debug("Received voltage sweep result: %s %s", matching_voltage, tuning_voltage)
-                        LUT.add_voltages(matching_voltage, tuning_voltage)
+                        logger.debug("Received voltage sweep result: Tuning %s Matching %s", tuning_voltage, matching_voltage)
+                        LUT.add_voltages(tuning_voltage, matching_voltage)
                         self.continue_or_finish_voltage_sweep(LUT)
 
             self.module.model.tuning_voltage = tuning_voltage
             self.module.model.matching_voltage = matching_voltage
+            logger.debug("Updated voltages: Tuning %s Matching %s", self.module.model.tuning_voltage, self.module.model.matching_voltage)
 
     def finish_frequency_sweep(self):
         """This method is called when a frequency sweep is finished.
@@ -555,22 +558,25 @@ class AutoTMController(ModuleController):
             logger.debug("Voltages already set")
             return
         
-        command = "v%sv%s" % (matching_voltage, tuning_voltage)
+        command = "v%sv%s" % (tuning_voltage, matching_voltage)
         
         start_time = time.time()
 
         confirmation = self.send_command(command)
         if confirmation:
-             while matching_voltage == self.module.model.matching_voltage and tuning_voltage == self.module.model.tuning_voltage:
+            while matching_voltage != self.module.model.matching_voltage and tuning_voltage != self.module.model.tuning_voltage:
                 QApplication.processEvents()
                 # Check for timeout
                 if time.time() - start_time > timeout_duration:
                     logger.error("Voltage setting timed out")
-                    break  # or handle timeout differently
+                    break
 
-        logger.debug("Voltages set successfully")
-        return confirmation
-
+            logger.debug("Voltages set successfully")
+            return confirmation
+        else:
+            logger.error("Could not set voltages")
+            return confirmation
+ 
     ### Electrical Lookup Table ###
 
     def generate_electrical_lut(
@@ -837,6 +843,10 @@ class AutoTMController(ModuleController):
 
         stepper_position = stepper.position
         future_position = stepper.position + int(steps)
+        if future_position == stepper_position:
+            logger.debug("Stepper already at position")
+            return
+        
         if self.validate_position(future_position, stepper):
             confirmation = self.send_stepper_command(int(steps), stepper)  # Convert the steps string to an integer
 
@@ -859,6 +869,11 @@ class AutoTMController(ModuleController):
 
         stepper_position = stepper.position
         future_position = int(steps)
+
+        if future_position == stepper_position:
+            logger.debug("Stepper already at position")
+            return
+
         if self.validate_position(future_position, stepper):
             actual_steps = self.calculate_steps_for_absolute_move(future_position, stepper)
             confirmation = self.send_stepper_command(actual_steps, stepper)

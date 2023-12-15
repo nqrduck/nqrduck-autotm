@@ -607,7 +607,7 @@ class AutoTMView(ModuleView):
                 )
             elif LUT.TYPE == "Electrical":
                 self.table_widget.setHorizontalHeaderLabels(
-                    ["Frequency (MHz)", "Matching Voltage", "Tuning Voltage"]
+                    ["Frequency (MHz)", "Tuning Voltage", "Matching Voltage"]
                 )
             
             for row, frequency in enumerate(LUT.data.keys()):
@@ -624,8 +624,8 @@ class AutoTMView(ModuleView):
                 test_button = QPushButton("Test")
                 # For electrical probe coils the matching voltage is the first entry in the LUT
                 if LUT.TYPE == "Electrical":
-                    tuning_voltage = str(LUT.data[frequency][1])
-                    matching_voltage = str(LUT.data[frequency][0])
+                    tuning_voltage = str(LUT.data[frequency][0])
+                    matching_voltage = str(LUT.data[frequency][1])
                     test_button.clicked.connect(
                         lambda _, tuning_voltage=tuning_voltage, matching_voltage=matching_voltage: self.module.controller.set_voltages(
                             tuning_voltage, matching_voltage
