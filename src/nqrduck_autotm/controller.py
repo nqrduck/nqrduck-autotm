@@ -52,14 +52,20 @@ class AutoTMController(ModuleController):
             confirmation = self.set_voltages(str(tunning_voltage), str(matching_voltage))
             # We need to waitfor the voltages to be set it would be nicer to have this confirmed by the ATM
             if confirmation:
+                # We need to change the signal pathway to preamp to measure the reflection
+                self.switch_to_atm()
                 reflection = self.read_reflection(frequency)
+                # We need to change the signal pathway back to atm to perform a measurement
+                self.switch_to_preamp()
                 self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
         elif self.module.model.LUT.TYPE == "Mechanical":
             tuning_position, matching_position = self.module.model.LUT.get_positions(frequency)
             self.go_to_position(tuning_position, matching_position)
-
+            # Switch to atm to measure the reflection
             reflection = self.read_reflection(frequency)
+            # Switch back to preamp to perform a measurement
+            self.switch_to_preamp()
 
             self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
@@ -109,6 +115,10 @@ class AutoTMController(ModuleController):
             self.module.model.serial = serial
 
             logger.debug("Connected to device %s", device)
+
+            # On opening of the command we set the switch position to atm
+            self.switch_to_atm()
+
         except Exception as e:
             logger.error("Could not connect to device %s: %s", device, e)
 
@@ -950,11 +960,11 @@ class AutoTMController(ModuleController):
 
         # Now we vary the tuning capacitor position and matching capacitor position
         # Step size tuner:
-        TUNER_STEP_SIZE = 20
+        TUNER_STEP_SIZE = 10
         # Step size matcher:
         MATCHER_STEP_SIZE = 50
 
-        TUNING_RANGE = 60
+        TUNING_RANGE = 40
         MATCHING_RANGE = 500
 
         tuning_backlash = self.module.model.tuning_stepper.BACKLASH_STEPS
