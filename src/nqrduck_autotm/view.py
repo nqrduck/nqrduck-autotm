@@ -21,6 +21,7 @@ from nqrduck.contrib.mplwidget import MplWidget
 from nqrduck.assets.icons import Logos
 from nqrduck.assets.animations import DuckAnimations
 from .widget import Ui_Form
+from .model import S11Data
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +138,16 @@ class AutoTMView(ModuleView):
 
         # Position Button
         self._ui_form.positionButton.clicked.connect(self.on_position_button_clicked)
+
+        # Import  and export buttons
+
+        self._ui_form.exportButton.setIcon(Logos.Save16x16())
+        self._ui_form.exportButton.setIconSize(self._ui_form.exportButton.size())
+        self._ui_form.exportButton.clicked.connect(self.on_export_button_clicked)
+
+        self._ui_form.importButton.setIcon(Logos.Load16x16())
+        self._ui_form.importButton.setIconSize(self._ui_form.importButton.size())
+        self._ui_form.importButton.clicked.connect(self.on_import_button_clicked)
 
         self.init_plot()
         self.init_labels()
@@ -383,6 +394,24 @@ class AutoTMView(ModuleView):
             return
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
+
+    @pyqtSlot()
+    def on_export_button_clicked(self) -> None:
+        """Slot for when the export button is clicked."""
+        logger.debug("Export button clicked")
+        file_manager = self.QFileManager(S11Data.FILE_EXTENSION, parent=self.widget)
+        file_name = file_manager.saveFileDialog()
+        if file_name:
+            self.module.controller.save_measurement(file_name)
+
+    @pyqtSlot()
+    def on_import_button_clicked(self) -> None:
+        """Slot for when the import button is clicked."""
+        logger.debug("Import button clicked")
+        file_manager = self.QFileManager(S11Data.FILE_EXTENSION, parent=self.widget)
+        file_name = file_manager.loadFileDialog()
+        if file_name:
+            self.module.controller.load_measurement(file_name)
 
     class StepperSavedPositionsWindow(QDialog):
         def __init__(self, module, parent=None):

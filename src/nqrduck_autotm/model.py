@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class S11Data:
+    FILE_EXTENSION = "s11"
     # Conversion factors - the data is generally sent and received in mV
     # These values are used to convert the data to dB and degrees
     CENTER_POINT_MAGNITUDE = 900  # mV

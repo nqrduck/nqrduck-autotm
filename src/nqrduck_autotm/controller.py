@@ -512,6 +512,35 @@ class AutoTMController(ModuleController):
             self.module.model.open_calibration = S11Data.from_json(data["open"])
             self.module.model.load_calibration = S11Data.from_json(data["load"])
 
+    def save_measurement(self, filename: str) -> None:
+        """Save measurement to file.
+
+        Args:
+            filename (str): Path to file.
+        """
+        logger.debug("Saving measurement.")
+        if not self.module.model.measurement:
+            logger.debug("No measurement to save.")
+            return
+
+        measurement = self.module.model.measurement.to_json()
+
+        with open(filename, "w") as f:
+            json.dump(measurement, f)
+
+    def load_measurement(self, filename: str) -> None:
+        """Load measurement from file.
+        
+        Args:
+            filename (str): Path to file.
+        """
+
+        logger.debug("Loading measurement.")
+
+        with open(filename, "r") as f:
+            measurement = json.load(f)
+            self.module.model.measurement = S11Data.from_json(measurement)
+
     ### Voltage Control ###
 
     def set_voltages(self, tuning_voltage: str, matching_voltage: str) -> None:
