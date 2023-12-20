@@ -164,7 +164,7 @@ class AutoTMView(ModuleView):
         """Initialize the S11 plot."""
         ax = self._ui_form.S11Plot.canvas.ax
         ax.set_xlabel("Frequency (MHz)")
-        ax.set_ylabel("S11 (dB)")
+        ax.set_ylabel("S11 (dB)", loc="center")
         ax.set_title("S11")
         ax.grid(True)
         ax.set_xlim(0, 100)
@@ -300,7 +300,9 @@ class AutoTMView(ModuleView):
         else:
             magnitude_ax.plot(frequency, return_loss_db, color="blue")
 
-        self.phase_ax.set_ylabel("|Phase (deg)|")
+        self.phase_ax.yaxis.tick_right()
+        self.phase_ax.yaxis.set_label_position("right")
+        self.phase_ax.set_ylabel("Phase (deg)")
         self.phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         # self.phase_ax.invert_yaxis()
 
