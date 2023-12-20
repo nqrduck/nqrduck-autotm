@@ -51,13 +51,12 @@ class AutoTMController(ModuleController):
         elif self.module.model.LUT.TYPE == "Electrical":
             tuning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
             confirmation = self.set_voltages(str(tuning_voltage), str(matching_voltage))
-            if confirmation:
-                # We need to change the signal pathway to preamp to measure the reflection
-                self.switch_to_atm()
-                reflection = self.read_reflection(frequency)
-                # We need to change the signal pathway back to atm to perform a measurement
-                self.switch_to_preamp()
-                self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
+            # We need to change the signal pathway to preamp to measure the reflection
+            self.switch_to_atm()
+            reflection = self.read_reflection(frequency)
+            # We need to change the signal pathway back to atm to perform a measurement
+            self.switch_to_preamp()
+            self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
         elif self.module.model.LUT.TYPE == "Mechanical":
             tuning_position, matching_position = self.module.model.LUT.get_positions(frequency)
@@ -595,13 +594,12 @@ class AutoTMController(ModuleController):
         start_time = time.time()
 
         confirmation = self.send_command(command)
-        if confirmation:
-            while matching_voltage != self.module.model.matching_voltage and tuning_voltage != self.module.model.tuning_voltage:
-                QApplication.processEvents()
-                # Check for timeout
-                if time.time() - start_time > timeout_duration:
-                    logger.error("Voltage setting timed out")
-                    break
+        while matching_voltage != self.module.model.matching_voltage and tuning_voltage != self.module.model.tuning_voltage:
+            QApplication.processEvents()
+            # Check for timeout
+            if time.time() - start_time > timeout_duration:
+                logger.error("Voltage setting timed out")
+                break
 
             logger.debug("Voltages set successfully")
             return confirmation
