@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class S11Data:
+    FILE_EXTENSION = "s11"
     # Conversion factors - the data is generally sent and received in mV
     # These values are used to convert the data to dB and degrees
     CENTER_POINT_MAGNITUDE = 900  # mV
@@ -139,6 +140,9 @@ class S11Data:
                 * phase_sign[i]
             )
 
+        # Murks: The last point is always wrong so just set it to the previous value
+        phase_data_corrected[-1] = phase_data_corrected[-2]
+
         return phase_data_corrected
 
     def to_json(self):
@@ -167,26 +171,102 @@ class LookupTable:
         start_frequency: float,
         stop_frequency: float,
         frequency_step: float,
-        voltage_resolution: float,
     ) -> None:
         self.start_frequency = start_frequency
         self.stop_frequency = stop_frequency
         self.frequency_step = frequency_step
-        self.voltage_resolution = voltage_resolution
 
         # This is the frequency at which the tuning and matching process was started
         self.started_frequency = None
+    
+    def get_entry_number(self, frequency: float) -> int:
+        """This method returns the entry number of the given frequency.
 
+        Args:
+            frequency (float): The frequency for which the entry number should be returned.
+
+        Returns:
+            int: The entry number of the given frequency.
+        """
+        # Round to closest integer
+        return int(round((frequency - self.start_frequency) / self.frequency_step))
+
+class Stepper:
+
+    def __init__(self) -> None:
+        self.homed = False
+        self.position = 0
+
+class SavedPosition():
+    """This class is used to store a saved position for tuning and matching of electrical probeheads."""
+    def __init__(self, frequency: float, tuning_position : int, matching_position : int) -> None:
+        self.frequency = frequency
+        self.tuning_position = tuning_position
+        self.matching_position = matching_position
+
+    def to_json(self):
+        return {
+            "frequency": self.frequency,
+            "tuning_position": self.tuning_position,
+            "matching_position": self.matching_position,
+        }
+
+class TuningStepper(Stepper):
+    TYPE = "Tuning"
+    MAX_STEPS = 1e6
+    BACKLASH_STEPS = 60
+
+    def __init__(self) -> None:
+        super().__init__()
+        # Backlash stepper 
+        self.last_direction = None
+    
+class MatchingStepper(Stepper):
+    TYPE = "Matching"
+    MAX_STEPS = 1e6
+
+    BACKLASH_STEPS = 0
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.last_direction = None
+
+class ElectricalLookupTable(LookupTable):
+    TYPE = "Electrical"
+
+    def __init__(self, start_frequency: float, stop_frequency: float, frequency_step: float) -> None:
+        super().__init__(start_frequency, stop_frequency, frequency_step)
         self.init_voltages()
 
     def init_voltages(self) -> None:
         """Initialize the lookup table with default values."""
         for frequency in np.arange(
-            self.start_frequency, self.stop_frequency, self.frequency_step
+            self.start_frequency, self.stop_frequency + self.frequency_step, self.frequency_step
         ):
             self.started_frequency = frequency
             self.add_voltages(None, None)
 
+    def add_voltages(self, tuning_voltage: float, matching_voltage: float) -> None:
+        """Add a tuning and matching voltage for the last started frequency to the lookup table.
+
+        Args:
+            tuning_voltage (float): The tuning voltage for the given frequency.
+            matching_voltage (float): The matching voltage for the given frequency."""
+        self.data[self.started_frequency] = (tuning_voltage, matching_voltage)
+
+    def get_voltages(self, frequency: float) -> tuple:
+        """Get the tuning and matching voltage for the given frequency.
+
+        Args:
+            frequency (float): The frequency for which the tuning and matching voltage should be returned.
+
+        Returns:
+            tuple: The tuning and matching voltage for the given frequency.
+        """
+        entry_number = self.get_entry_number(frequency)
+        key = list(self.data.keys())[entry_number]
+        return self.data[key]
+    
     def is_incomplete(self) -> bool:
         """This method returns True if the lookup table is incomplete,
         i.e. if there are frequencies for which no the tuning or matching voltage is none.
@@ -214,19 +294,78 @@ class LookupTable:
 
         return None
 
-    def add_voltages(self, tuning_voltage: float, matching_voltage: float) -> None:
-        """Add a tuning and matching voltage for the last started frequency to the lookup table.
+class MechanicalLookupTable(LookupTable):
+    # Hmm duplicate code
+    TYPE = "Mechanical"
+    
+
+    def __init__(self, start_frequency: float, stop_frequency: float, frequency_step: float) -> None:
+        super().__init__(start_frequency, stop_frequency, frequency_step)
+        self.init_positions()
+
+    def init_positions(self) -> None:
+        """Initialize the lookup table with default values."""
+        for frequency in np.arange(
+            self.start_frequency, self.stop_frequency + self.frequency_step, self.frequency_step
+        ):
+            self.started_frequency = frequency
+            self.add_positions(None, None)
+
+    def add_positions(self, tuning_position: int, matching_position: int) -> None:
+        """Add a tuning and matching position for the last started frequency to the lookup table.
 
         Args:
-            tuning_voltage (float): The tuning voltage for the given frequency.
-            matching_voltage (float): The matching voltage for the given frequency."""
-        self.data[self.started_frequency] = (tuning_voltage, matching_voltage)
+            tuning_position (int): The tuning position for the given frequency.
+            matching_position (int): The matching position for the given frequency."""
+        self.data[self.started_frequency] = (tuning_position, matching_position)
 
+    def get_positions(self, frequency: float) -> tuple:
+        """Get the tuning and matching position for the given frequency.
 
+        Args:
+            frequency (float): The frequency for which the tuning and matching position should be returned.
+
+        Returns:
+            tuple: The tuning and matching position for the given frequency.
+        """
+        entry_number = self.get_entry_number(frequency)
+        key = list(self.data.keys())[entry_number]
+        return self.data[key]
+    
+    def is_incomplete(self) -> bool:
+        """This method returns True if the lookup table is incomplete,
+        i.e. if there are frequencies for which no the tuning or matching position is none.
+
+        Returns:
+            bool: True if the lookup table is incomplete, False otherwise.
+        """
+        return any(
+            [
+                tuning_position is None or matching_position is None
+                for tuning_position, matching_position in self.data.values()
+            ]
+        )
+    
+    def get_next_frequency(self) -> float:
+        """This method returns the next frequency for which the tuning and matching position is not yet set.
+
+        Returns:
+            float: The next frequency for which the tuning and matching position is not yet set.
+        """
+
+        for frequency, (tuning_position, matching_position) in self.data.items():
+            if tuning_position is None or matching_position is None:
+                return frequency
+
+        return None
 class AutoTMModel(ModuleModel):
+
     available_devices_changed = pyqtSignal(list)
     serial_changed = pyqtSignal(QSerialPort)
     data_points_changed = pyqtSignal(list)
+    active_stepper_changed = pyqtSignal(Stepper)
+    saved_positions_changed = pyqtSignal(list)
+    serial_data_received = pyqtSignal(str)
 
     short_calibration_finished = pyqtSignal(S11Data)
     open_calibration_finished = pyqtSignal(S11Data)
@@ -239,6 +378,24 @@ class AutoTMModel(ModuleModel):
         self.active_calibration = None
         self.calibration = None
         self.serial = None
+
+        self.tuning_stepper = TuningStepper()
+        self.matching_stepper = MatchingStepper()
+        self.active_stepper = self.tuning_stepper
+
+        self.saved_positions = []
+
+        self.el_lut = None
+        self.mech_lut = None
+        self.LUT = None
+
+        self.last_reflection = None
+
+        self.tuning_voltage = None
+        self.matching_voltage = None
+
+        # AutoTM system or preamp
+        self.signal_path = None
 
     @property
     def available_devices(self):
@@ -274,6 +431,25 @@ class AutoTMModel(ModuleModel):
         self.data_points_changed.emit(self.data_points)
 
     @property
+    def saved_positions(self):
+        return self._saved_positions
+    
+    @saved_positions.setter
+    def saved_positions(self, value):
+        self._saved_positions = value
+        self.saved_positions_changed.emit(value)
+
+    def add_saved_position(self, frequency: float, tuning_position: int, matching_position: int) -> None:
+        """Add a saved position to the model."""
+        self.saved_positions.append(SavedPosition(frequency, tuning_position, matching_position))
+        self.saved_positions_changed.emit(self.saved_positions)
+
+    def delete_saved_position(self, position: SavedPosition) -> None:
+        """Delete a saved position from the model."""
+        self.saved_positions.remove(position)
+        self.saved_positions_changed.emit(self.saved_positions)
+
+    @property
     def measurement(self):
         """The measurement property is used to store the current measurement.
         This is the measurement that is shown in the main S11 plot"""
@@ -284,6 +460,15 @@ class AutoTMModel(ModuleModel):
         """The measurement value is a tuple of three lists: frequency, return loss and phase."""
         self._measurement = value
         self.measurement_finished.emit(value)
+
+    @property
+    def active_stepper(self):
+        return self._active_stepper
+    
+    @active_stepper.setter
+    def active_stepper(self, value):
+        self._active_stepper = value
+        self.active_stepper_changed.emit(value)
 
     # Calibration properties
 

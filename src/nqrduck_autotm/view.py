@@ -21,6 +21,7 @@ from nqrduck.contrib.mplwidget import MplWidget
 from nqrduck.assets.icons import Logos
 from nqrduck.assets.animations import DuckAnimations
 from .widget import Ui_Form
+from .model import S11Data
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,14 @@ class AutoTMView(ModuleView):
         self._ui_form.setupUi(self)
         self.widget = widget
 
-        self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
+        self.frequency_sweep_spinner = self.LoadingSpinner(self)
         self.frequency_sweep_spinner.hide()
 
         # Disable the connectButton while no devices are selected
         self._ui_form.connectButton.setDisabled(True)
+        self._ui_form.decreaseButton.setEnabled(False)
+        self._ui_form.increaseButton.setEnabled(False)
+        self._ui_form.absoluteGoButton.setEnabled(False)
 
         # On clicking of the refresh button scan for available usb devices
         self._ui_form.refreshButton.clicked.connect(self.module.controller.find_devices)
@@ -61,18 +65,28 @@ class AutoTMView(ModuleView):
             )
         )
 
-        # On clicking of the generateLUTButton call the generate_lut method
+        # On clicking of the generateLUTButton call the generate_mechanical_lut method
         self._ui_form.generateLUTButton.clicked.connect(
-            lambda: self.module.controller.generate_lut(
+            lambda: self.module.controller.generate_electrical_lut(
                 self._ui_form.startfrequencyBox.text(),
                 self._ui_form.stopfrequencyBox.text(),
                 self._ui_form.frequencystepBox.text(),
-                self._ui_form.resolutionBox.text(),
+            )
+        )
+
+        # On clicking of the generateLUTButton call the generate_electrical_lut method
+        self._ui_form.mechLUTButton.clicked.connect(
+            lambda: self.module.controller.generate_mechanical_lut(
+                self._ui_form.startfrequencyBox.text(),
+                self._ui_form.stopfrequencyBox.text(),
+                self._ui_form.frequencystepBox.text(),
             )
         )
 
         # On clicking of the viewLUTButton call the view_lut method
-        self._ui_form.viewLUTButton.clicked.connect(self.view_lut)
+        self._ui_form.viewelLUTButton.clicked.connect(self.view_el_lut)
+
+        self._ui_form.viewmechLUTButton.clicked.connect(self.view_mech_lut)
 
         # On clicking of the setvoltagesButton call the set_voltages method
         self._ui_form.setvoltagesButton.clicked.connect(
@@ -97,7 +111,7 @@ class AutoTMView(ModuleView):
         )
 
         # On clicking of the homingButton call the homing method
-        self._ui_form.starpositionButton.clicked.connect(self.module.controller.homing)
+        self._ui_form.homeButton.clicked.connect(self.module.controller.homing)
 
         # Connect the measurement finished signal to the plot_measurement slot
         self.module.model.measurement_finished.connect(self.plot_measurement)
@@ -112,11 +126,35 @@ class AutoTMView(ModuleView):
         self._ui_form.startButton.setIcon(Logos.Play_16x16())
         self._ui_form.startButton.setIconSize(self._ui_form.startButton.size())
 
+        # Stepper selection
+        self._ui_form.stepperselectBox.currentIndexChanged.connect(lambda: self.module.controller.on_stepper_changed(self._ui_form.stepperselectBox.currentText()))
+        self._ui_form.increaseButton.clicked.connect(lambda: self.module.controller.on_relative_move(self._ui_form.stepsizeBox.text()))
+        self._ui_form.decreaseButton.clicked.connect(lambda: self.module.controller.on_relative_move("-" + self._ui_form.stepsizeBox.text()))
+
+        self._ui_form.absoluteGoButton.clicked.connect(lambda: self.module.controller.on_absolute_move(self._ui_form.absoluteposBox.text()))
+
+        # Active  stepper changed
+        self.module.model.active_stepper_changed.connect(self.on_active_stepper_changed)
+
+        # Position Button
+        self._ui_form.positionButton.clicked.connect(self.on_position_button_clicked)
+
+        # Import  and export buttons
+
+        self._ui_form.exportButton.setIcon(Logos.Save16x16())
+        self._ui_form.exportButton.setIconSize(self._ui_form.exportButton.size())
+        self._ui_form.exportButton.clicked.connect(self.on_export_button_clicked)
+
+        self._ui_form.importButton.setIcon(Logos.Load16x16())
+        self._ui_form.importButton.setIconSize(self._ui_form.importButton.size())
+        self._ui_form.importButton.clicked.connect(self.on_import_button_clicked)
+
         self.init_plot()
         self.init_labels()
 
     def init_labels(self) -> None:
         """Makes some of the labels bold for better readability."""
+        self._ui_form.tmsettingsLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titleconnectionLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titlefrequencyLabel.setStyleSheet("font-weight: bold;")
         self._ui_form.titletypeLabel.setStyleSheet("font-weight: bold;")
@@ -126,7 +164,7 @@ class AutoTMView(ModuleView):
         """Initialize the S11 plot."""
         ax = self._ui_form.S11Plot.canvas.ax
         ax.set_xlabel("Frequency (MHz)")
-        ax.set_ylabel("S11 (dB)")
+        ax.set_ylabel("S11 (dB)", loc="center")
         ax.set_title("S11")
         ax.grid(True)
         ax.set_xlim(0, 100)
@@ -156,6 +194,10 @@ class AutoTMView(ModuleView):
             self._ui_form.connectButton.setEnabled(False)
         logger.debug("Updated available devices list")
 
+    def on_stepper_changed():
+        """Update the stepper position label according to the current stepper position."""
+        logger.debug("Updating stepper position label")
+
     @pyqtSlot()
     def on_connect_button_clicked(self) -> None:
         """This method is called when the connect button is clicked.
@@ -183,6 +225,38 @@ class AutoTMView(ModuleView):
             self._ui_form.connectButton.setText("Connect")
 
         logger.debug("Updated serial connection label")
+
+    @pyqtSlot()
+    def on_active_stepper_changed(self) -> None:
+        """Update the stepper position label according to the current stepper position."""
+        logger.debug("Updating stepper position label")
+        self._ui_form.stepperposLabel.setText(str(self.module.model.active_stepper.position))
+        logger.debug("Updated stepper position label")
+
+        # Only allow position change when stepper is  homed
+        if self.module.model.active_stepper.homed:
+            self._ui_form.decreaseButton.setEnabled(True)
+            self._ui_form.increaseButton.setEnabled(True)
+            self._ui_form.absoluteGoButton.setEnabled(True)
+            self._ui_form.positionButton.setEnabled(True)
+            self._ui_form.mechLUTButton.setEnabled(True)
+            self._ui_form.viewmechLUTButton.setEnabled(True)
+        else:
+            self._ui_form.decreaseButton.setEnabled(False)
+            self._ui_form.increaseButton.setEnabled(False)
+            self._ui_form.absoluteGoButton.setEnabled(False)
+            self._ui_form.positionButton.setEnabled(False)
+            self._ui_form.mechLUTButton.setEnabled(False)
+            self._ui_form.viewmechLUTButton.setEnabled(False)
+
+    @pyqtSlot()
+    def on_position_button_clicked(self) -> None:
+        """This method is called when the position button is clicked.
+        It opens the position window.
+        """
+        logger.debug("Position button clicked")
+        self.position_window = self.StepperSavedPositionsWindow(self.module, self)
+        self.position_window.show()
 
     def plot_measurement(self, data: "S11Data") -> None:
         """Update the S11 plot with the current data points.
@@ -226,7 +300,9 @@ class AutoTMView(ModuleView):
         else:
             magnitude_ax.plot(frequency, return_loss_db, color="blue")
 
-        self.phase_ax.set_ylabel("|Phase (deg)|")
+        self.phase_ax.yaxis.tick_right()
+        self.phase_ax.yaxis.set_label_position("right")
+        self.phase_ax.set_ylabel("Phase (deg)")
         self.phase_ax.plot(frequency, phase, color="orange", linestyle="--")
         # self.phase_ax.invert_yaxis()
 
@@ -288,21 +364,237 @@ class AutoTMView(ModuleView):
 
     def create_frequency_sweep_spinner_dialog(self) -> None:
         """Creates a frequency sweep spinner dialog."""
-        self.frequency_sweep_spinner = self.FrequencySweepSpinner(self)
+        self.frequency_sweep_spinner = self.LoadingSpinner("Performing frequency sweep ...", self)
         self.frequency_sweep_spinner.show()
 
-    def view_lut(self) -> None:
-        """Creates a new Dialog that shows the currently active LUT."""
+    def create_el_LUT_spinner_dialog(self) -> None:
+        """Creates a electrical LUT spinner dialog."""
+        self.el_LUT_spinner = self.LoadingSpinner("Generating electrical LUT ...", self)
+        self.el_LUT_spinner.show()
+
+    def create_mech_LUT_spinner_dialog(self) -> None:
+        """Creates a mechanical LUT spinner dialog."""
+        self.mech_LUT_spinner = self.LoadingSpinner("Generating mechanical LUT ...", self)
+        self.mech_LUT_spinner.show()
+
+    def view_el_lut(self) -> None:
+        """Creates a new Dialog that shows the currently active electrical LUT."""
         logger.debug("View LUT")
+        if self.module.model.el_lut is None:
+            logger.debug("No LUT available")
+            self.add_error_text("No LUT available")
+            return
         self.lut_window = self.LutWindow(self.module)
         self.lut_window.show()
 
-    class FrequencySweepSpinner(QDialog):
+    def view_mech_lut(self) -> None:
+        """Creates a new Dialog that shows the currently active mechanical LUT."""
+        logger.debug("View mechanical LUT")
+        if self.module.model.mech_lut is None:
+            logger.debug("No LUT available")
+            self.add_error_text("No LUT available")
+            return
+        self.lut_window = self.LutWindow(self.module)
+        self.lut_window.show()
+
+    @pyqtSlot()
+    def on_export_button_clicked(self) -> None:
+        """Slot for when the export button is clicked."""
+        logger.debug("Export button clicked")
+        file_manager = self.QFileManager(S11Data.FILE_EXTENSION, parent=self.widget)
+        file_name = file_manager.saveFileDialog()
+        if file_name:
+            self.module.controller.save_measurement(file_name)
+
+    @pyqtSlot()
+    def on_import_button_clicked(self) -> None:
+        """Slot for when the import button is clicked."""
+        logger.debug("Import button clicked")
+        file_manager = self.QFileManager(S11Data.FILE_EXTENSION, parent=self.widget)
+        file_name = file_manager.loadFileDialog()
+        if file_name:
+            self.module.controller.load_measurement(file_name)
+
+    class StepperSavedPositionsWindow(QDialog):
+        def __init__(self, module, parent=None):
+            super().__init__(parent)
+            self.setParent(parent)
+            self.module = module
+            self.setWindowTitle("Saved positions")
+            # make window larger
+            self.resize(800, 800)
+
+            # Add vertical main layout
+            main_layout = QVBoxLayout()
+
+            # Create table widget
+            self.table_widget = QTableWidget()
+            self.table_widget.setColumnCount(5)
+            self.table_widget.setHorizontalHeaderLabels(
+                ["Frequency (MHz)", "Tuning Position", "Matching Position", "Button", "Delete"]
+            )
+
+            self.table_widget.setColumnWidth(0, 150)
+            self.table_widget.setColumnWidth(1, 200)
+            self.table_widget.setColumnWidth(2, 200)
+            self.table_widget.setColumnWidth(3, 100)
+            self.table_widget.setColumnWidth(4, 100)
+            self.on_saved_positions_changed()
+
+            # Add a 'Load Position' button (File selector)
+            load_position_button = QPushButton("Load Positions File")
+            load_position_button.clicked.connect(self.on_load_position_button_clicked)
+            main_layout.addWidget(load_position_button)
+
+            # Add a 'Save Position' button (File selector)
+            save_position_button = QPushButton("Save Positions File")
+            save_position_button.clicked.connect(self.on_save_position_button_clicked)
+            main_layout.addWidget(save_position_button)
+
+            # Add a 'New Position' button
+            new_position_button = QPushButton("New Position")
+            new_position_button.clicked.connect(self.on_new_position_button_clicked)
+            main_layout.addWidget(new_position_button)
+
+            # Add table widget to main layout
+            main_layout.addWidget(self.table_widget)
+
+            # On saved positions changed
+            self.module.model.saved_positions_changed.connect(self.on_saved_positions_changed)
+
+
+            self.setLayout(main_layout)
+
+        def file_selector(self, mode) -> str:
+            """Opens a file selector and returns the selected file."""
+            filedialog = QFileDialog()
+            if mode == "load":
+                filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptOpen)
+            elif mode == "save":
+                filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
+            filedialog.setNameFilter("position files (*.pos)")
+            filedialog.setDefaultSuffix("pos")
+            filedialog.exec()
+            filename = filedialog.selectedFiles()[0]
+            return filename
+
+        def on_load_position_button_clicked(self) -> None:
+            """File picker for loading a position from a file."""
+            filename = self.file_selector("load")
+            logger.debug("Loading position from %s" % filename)
+            self.module.controller.load_positions(filename)
+
+        def on_save_position_button_clicked(self) -> None:
+            """File picker for saving a position to a file."""
+            filename = self.file_selector("save")
+            logger.debug("Saving position to %s" % filename)
+            self.module.controller.save_positions(filename)
+
+        def on_new_position_button_clicked(self) -> None:
+            """Opens a new position dialog."""
+            logger.debug("New position button clicked")
+            self.new_position_window = self.NewPositionWindow(self.module, self)
+            self.new_position_window.show()
+
+
+        def on_saved_positions_changed(self) -> None:
+            """This method is called when the saved positions changed.
+            It updates the table widget.
+            """
+            logger.debug("Updating saved positions table")
+            self.table_widget.clearContents()
+            self.table_widget.setRowCount(0)
+
+            for row, position in enumerate(self.module.model.saved_positions):
+                self.table_widget.insertRow(row)
+                self.table_widget.setItem(row, 0, QTableWidgetItem(str(position.frequency)))
+                self.table_widget.setItem(
+                    row, 1, QTableWidgetItem(position.tuning_position)
+                )
+                self.table_widget.setItem(
+                    row, 2, QTableWidgetItem(position.matching_position)
+                )
+                go_button = QPushButton("Go")
+                go_button.clicked.connect(
+                    lambda _, position=position: self.module.controller.on_go_to_position(
+                        position
+                    )
+                )
+                self.table_widget.setCellWidget(row, 3, go_button)
+
+                delete_button = QPushButton("Delete")
+                delete_button.clicked.connect(
+                    lambda _, position=position: self.module.controller.on_delete_position(
+                        position
+                    )
+                )
+                self.table_widget.setCellWidget(row, 4, delete_button)
+                
+            logger.debug("Updated saved positions table")
+
+        class NewPositionWindow(QDialog):
+            def __init__(self, module, parent=None):
+                super().__init__(parent)
+                self.setParent(parent)
+                self.module = module
+                self.setWindowTitle("New Position")
+
+                # Add vertical main layout
+                main_layout = QVBoxLayout()
+
+                # Add horizontal layout for the frequency range
+                frequency_layout = QHBoxLayout()
+                main_layout.addLayout(frequency_layout)
+                frequency_label = QLabel("Frequency")
+                frequency_layout.addWidget(frequency_label)
+                frequency_edit = QLineEdit()
+                frequency_layout.addWidget(frequency_edit)
+                unit_label = QLabel("MHz")
+                frequency_layout.addWidget(unit_label)
+                frequency_layout.addStretch()
+
+                # Add horizontal layout for the calibration type
+                type_layout = QHBoxLayout()
+                main_layout.addLayout(type_layout)
+
+                # Add vertical layout for short calibration
+                tuning_layout = QVBoxLayout()
+                tuning_label = QLabel("Tuning Position")
+                tuning_layout.addWidget(tuning_label)
+                tuning_edit = QLineEdit()
+                tuning_layout.addWidget(tuning_edit)
+                type_layout.addLayout(tuning_layout)
+
+                # Add vertical layout for open calibration
+                matching_layout = QVBoxLayout()
+                matching_label = QLabel("Matching Position")
+                matching_layout.addWidget(matching_label)
+                matching_edit = QLineEdit()
+                matching_layout.addWidget(matching_edit)
+                type_layout.addLayout(matching_layout)
+
+                # Add vertical layout for save calibration
+                data_layout = QVBoxLayout()
+                # Apply button
+                apply_button = QPushButton("Apply")
+                apply_button.clicked.connect(lambda: self.on_apply_button_clicked(frequency_edit.text(), tuning_edit.text(), matching_edit.text()))
+                data_layout.addWidget(apply_button)
+
+                main_layout.addLayout(data_layout)
+
+                self.setLayout(main_layout)
+
+            def on_apply_button_clicked(self, frequency: str, tuning_position: str, matching_position: str) -> None:
+                """This method is called when the apply button is clicked."""
+                self.module.controller.add_position(frequency, tuning_position, matching_position)
+                # Close the calibration window
+                self.close()
+    class LoadingSpinner(QDialog):
         """This class implements a spinner dialog that is shown during a frequency sweep."""
 
-        def __init__(self, parent=None):
+        def __init__(self, text : str, parent=None):
             super().__init__(parent)
-            self.setWindowTitle("Frequency sweep")
+            self.setWindowTitle("Loading")
             self.setModal(True)
             self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
             self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -312,7 +604,7 @@ class AutoTMView(ModuleView):
             self.spinner_label.setMovie(self.spinner_movie)
 
             self.layout = QVBoxLayout(self)
-            self.layout.addWidget(QLabel("Performing frequency sweep..."))
+            self.layout.addWidget(QLabel(text))
             self.layout.addWidget(self.spinner_label)
 
             self.spinner_movie.start()
@@ -324,16 +616,31 @@ class AutoTMView(ModuleView):
             self.setParent(parent)
             self.setWindowTitle("LUT")
 
+            # Set  size
+            self.resize(800, 800)
+
             # Add vertical main layout
             main_layout = QVBoxLayout()
 
+            LUT = self.module.model.LUT
+
             # Create table widget
             self.table_widget = QTableWidget()
-            self.table_widget.setColumnCount(3)
-            self.table_widget.setHorizontalHeaderLabels(
-                ["Frequency (MHz)", "Matching Voltage", "Tuning Voltage"]
-            )
-            LUT = self.module.model.LUT
+            self.table_widget.setColumnCount(4)
+            self.table_widget.setColumnWidth(0, 150)
+            self.table_widget.setColumnWidth(1, 200)
+            self.table_widget.setColumnWidth(2, 200)
+            self.table_widget.setColumnWidth(3, 100)
+
+            if LUT.TYPE == "Mechanical":
+                self.table_widget.setHorizontalHeaderLabels(
+                    ["Frequency (MHz)", "Tuning Position", "Matching Position"]
+                )
+            elif LUT.TYPE == "Electrical":
+                self.table_widget.setHorizontalHeaderLabels(
+                    ["Frequency (MHz)", "Tuning Voltage", "Matching Voltage"]
+                )
+            
             for row, frequency in enumerate(LUT.data.keys()):
                 self.table_widget.insertRow(row)
                 self.table_widget.setItem(row, 0, QTableWidgetItem(str(frequency)))
@@ -344,20 +651,38 @@ class AutoTMView(ModuleView):
                     row, 2, QTableWidgetItem(str(LUT.data[frequency][1]))
                 )
 
+                # Button to test the specific entry in the LUT
+                test_button = QPushButton("Test")
+                # For electrical probe coils the matching voltage is the first entry in the LUT
+                if LUT.TYPE == "Electrical":
+                    tuning_voltage = str(LUT.data[frequency][0])
+                    matching_voltage = str(LUT.data[frequency][1])
+                    test_button.clicked.connect(
+                        lambda _, tuning_voltage=tuning_voltage, matching_voltage=matching_voltage: self.module.controller.set_voltages(
+                            tuning_voltage, matching_voltage
+                        )
+                    )
+                # For mechanical probe coils the tuning voltage is the first entry in the LUT
+                elif LUT.TYPE == "Mechanical":
+                    tuning_position = str(LUT.data[frequency][0])
+                    matching_position = str(LUT.data[frequency][1])
+                    test_button.clicked.connect(
+                        lambda _, tuning_position=tuning_position, matching_position=matching_position: self.module.controller.go_to_position(
+                            tuning_position, matching_position
+                        )
+                    )
+                
+                self.table_widget.setCellWidget(row, 3, test_button)
+
             # Add table widget to main layout
             main_layout.addWidget(self.table_widget)
-
-            # Add Test LUT button
-            test_lut_button = QPushButton("Test LUT")
-            test_lut_button.clicked.connect(self.test_lut)
-            main_layout.addWidget(test_lut_button)
-
             self.setLayout(main_layout)
 
         def test_lut(self):
             """This method is called when the Test LUT button is clicked. It sets all of the voltages from the lut with a small delay.
             One can then view the matching on a seperate VNA.
             """
+            # This should be in the controller
             for frequency in self.module.model.LUT.data.keys():
                 tuning_voltage = str(self.module.model.LUT.data[frequency][1])
                 matching_voltage = str(self.module.model.LUT.data[frequency][0])
