@@ -36,7 +36,7 @@ The module is used together with the ATM-system. Connect the ATM-system to the P
 
 - a.) The Connection settings for connecting to the ATM-system.
 - b.) The 'Tuning and Matching' tab. Here you can control the ATM-system and switch between electrically and mechanically tunable probe coils.
-- c.) The '$S_{11}$' tab. Here you can measure the $S_{11}$ parameter of the probe coil over a frequency range.
+- c.) The $S_{11}$ tab. Here you can measure the $S_{11}$ parameter of the probe coil over a frequency range.
 - d.) The 'Info Box'. Here you can see the current status of the ATM-system.
 - e.) The $S_{11}$ plot. Here you can see the measured $S_{11}$ parameter of the probe coil over a frequency range.
 
