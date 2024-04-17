@@ -61,4 +61,4 @@ convention = "google"
 "Source Code" = "https://github.com/nqrduck/nqrduck-autotm"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/nqrduck"]
+packages = ["src/nqrduck_autotm"]
