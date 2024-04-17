@@ -32,7 +32,7 @@ pip install .
 ## Usage
 The module is used together with the ATM-system. Connect the ATM-system to the PC running the NQRduck program. You can connect to the ATM-system using the 'Tuning and Matching' tab in the NQRduck program.
 
-<img src="docs/img/autotm-labeled.png" alt="drawing" width="800">
+<img src="https://raw.githubusercontent.com/nqrduck/nqrduck-autotm/2860c826f056182e89e7cb2b9bac5c78420d9a29/docs/img/autotm-labeled.png" alt="drawing" width="800">
 
 - a.) The Connection settings for connecting to the ATM-system.
 - b.) The 'Tuning and Matching' tab. Here you can control the ATM-system and switch between electrically and mechanically tunable probe coils.
