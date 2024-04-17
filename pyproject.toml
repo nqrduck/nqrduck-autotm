@@ -25,8 +25,40 @@ dependencies = [
     "pyqt6",
     "nqrduck",
     "pyserial",
+    "scipy",
 ]
 
 [project.entry-points."nqrduck"]
 "nqrduck-autotm" = "nqrduck_autotm.autotm:AutoTM"
 
+dev = [
+    "black",
+    "pydocstyle",
+    "pyupgrade",
+    "ruff",
+]
+
+[tool.ruff]
+exclude = [
+  "widget.py",
+]
+
+[tool.ruff.lint]
+extend-select = [
+  "UP",  # pyupgrade
+  "D",   # pydocstyle
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[project.urls]
+"Homepage" = "https://nqrduck.cool"
+"Bug Tracker" = "https://github.com/nqrduck/nqrduck-autotm/issues"
+"Source Code" = "https://github.com/nqrduck/nqrduck-autotm"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nqrduck"]

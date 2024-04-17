@@ -2,11 +2,9 @@ import logging
 import time
 import numpy as np
 import json
-import time
 from serial.tools.list_ports import comports
-from PyQt6.QtTest import QTest
 from PyQt6 import QtSerialPort
-from PyQt6.QtCore import QThread, pyqtSignal, pyqtSlot, Qt
+from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
@@ -43,7 +41,7 @@ class AutoTMController(ModuleController):
             self.tune_and_match(value)
 
     def tune_and_match(self, frequency: float) -> None:
-        """ This method is called when this module already has a LUT table. It should then tune and match the probe coil to the specified frequency.
+        """This method is called when this module already has a LUT table. It should then tune and match the probe coil to the specified frequency.
         """
         if self.module.model.LUT is None:
             logger.error("Could not tune and match. No LUT available.")
@@ -301,7 +299,8 @@ class AutoTMController(ModuleController):
         It hides the voltage sweep spinner dialog and adds the data to the model.
         
         Args:
-            LUT (LookupTable): The lookup table that is being generated."""
+        LUT (LookupTable): The lookup table that is being generated.
+        """
         logger.debug("Voltage sweep finished")
         self.module.view.el_LUT_spinner.hide()
         self.module.model.LUT = LUT
@@ -505,7 +504,7 @@ class AutoTMController(ModuleController):
         logger.debug("Importing calibration")
 
         # We import the different calibrations from a json file
-        with open(filename, "r") as f:
+        with open(filename) as f:
             data = json.load(f)
             self.module.model.short_calibration = S11Data.from_json(data["short"])
             self.module.model.open_calibration = S11Data.from_json(data["open"])
@@ -533,10 +532,9 @@ class AutoTMController(ModuleController):
         Args:
             filename (str): Path to file.
         """
-
         logger.debug("Loading measurement.")
 
-        with open(filename, "r") as f:
+        with open(filename) as f:
             measurement = json.load(f)
             self.module.model.measurement = S11Data.from_json(measurement)
 
@@ -928,7 +926,7 @@ class AutoTMController(ModuleController):
         # First clear the old positions
         self.module.model.saved_positions = []
 
-        with open(path, "r") as f:
+        with open(path) as f:
             positions = json.load(f)
             for position in positions:
                 logger.debug("Loading position: %s", position)
@@ -1048,7 +1046,6 @@ class AutoTMController(ModuleController):
 
     def start_next_mechTM(self, LUT):
         """Start the next mechanical tuning and matching sweep."""
-
         next_frequency = LUT.get_next_frequency()
         LUT.started_frequency = next_frequency
         logger.debug("Starting next mechanical tuning and matching:")

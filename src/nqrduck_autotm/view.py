@@ -212,7 +212,8 @@ class AutoTMView(ModuleView):
         """Update the serial 'connectionLabel' according to the current serial connection.
 
         Args:
-            serial (serial.Serial): The current serial connection."""
+        serial (serial.Serial): The current serial connection.
+        """
         logger.debug("Updating serial connection label")
         if serial.isOpen():
             self._ui_form.connectionLabel.setText(serial.portName())

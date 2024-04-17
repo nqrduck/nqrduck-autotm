@@ -40,7 +40,6 @@ class S11Data:
         Keyword Arguments:
             phase_correction {bool} -- If True, the phase correction is applied. (default: {False})
         """
-
         phase_deg = (self.phase_mv - self.CENTER_POINT_PHASE) / self.PHASE_SLOPE
         if phase_correction:
             phase_deg = self.phase_correction(self.frequency, phase_deg)
@@ -197,7 +196,7 @@ class Stepper:
         self.homed = False
         self.position = 0
 
-class SavedPosition():
+class SavedPosition:
     """This class is used to store a saved position for tuning and matching of electrical probeheads."""
     def __init__(self, frequency: float, tuning_position : int, matching_position : int) -> None:
         self.frequency = frequency
@@ -251,7 +250,8 @@ class ElectricalLookupTable(LookupTable):
 
         Args:
             tuning_voltage (float): The tuning voltage for the given frequency.
-            matching_voltage (float): The matching voltage for the given frequency."""
+        matching_voltage (float): The matching voltage for the given frequency.
+        """
         self.data[self.started_frequency] = (tuning_voltage, matching_voltage)
 
     def get_voltages(self, frequency: float) -> tuple:
@@ -287,7 +287,6 @@ class ElectricalLookupTable(LookupTable):
         Returns:
             float: The next frequency for which the tuning and matching voltage is not yet set.
         """
-
         for frequency, (tuning_voltage, matching_voltage) in self.data.items():
             if tuning_voltage is None or matching_voltage is None:
                 return frequency
@@ -316,7 +315,8 @@ class MechanicalLookupTable(LookupTable):
 
         Args:
             tuning_position (int): The tuning position for the given frequency.
-            matching_position (int): The matching position for the given frequency."""
+        matching_position (int): The matching position for the given frequency.
+        """
         self.data[self.started_frequency] = (tuning_position, matching_position)
 
     def get_positions(self, frequency: float) -> tuple:
@@ -352,7 +352,6 @@ class MechanicalLookupTable(LookupTable):
         Returns:
             float: The next frequency for which the tuning and matching position is not yet set.
         """
-
         for frequency, (tuning_position, matching_position) in self.data.items():
             if tuning_position is None or matching_position is None:
                 return frequency
@@ -452,7 +451,8 @@ class AutoTMModel(ModuleModel):
     @property
     def measurement(self):
         """The measurement property is used to store the current measurement.
-        This is the measurement that is shown in the main S11 plot"""
+        This is the measurement that is shown in the main S11 plot
+        """
         return self._measurement
 
     @measurement.setter
