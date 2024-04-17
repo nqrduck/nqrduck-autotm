@@ -28,15 +28,15 @@ dependencies = [
     "scipy",
 ]
 
-[project.entry-points."nqrduck"]
-"nqrduck-autotm" = "nqrduck_autotm.autotm:AutoTM"
-
 dev = [
     "black",
     "pydocstyle",
     "pyupgrade",
     "ruff",
 ]
+
+[project.entry-points."nqrduck"]
+"nqrduck-autotm" = "nqrduck_autotm.autotm:AutoTM"
 
 [tool.ruff]
 exclude = [
