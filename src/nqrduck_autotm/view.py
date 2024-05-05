@@ -402,7 +402,7 @@ class AutoTMView(ModuleView):
     def on_export_button_clicked(self) -> None:
         """Slot for when the export button is clicked."""
         logger.debug("Export button clicked")
-        file_manager = self.QFileManager(S11Data.FILE_EXTENSION, parent=self.widget)
+        file_manager = self.FileManager(S11Data.FILE_EXTENSION, parent=self.widget)
         file_name = file_manager.saveFileDialog()
         if file_name:
             self.module.controller.save_measurement(file_name)
@@ -411,7 +411,7 @@ class AutoTMView(ModuleView):
     def on_import_button_clicked(self) -> None:
         """Slot for when the import button is clicked."""
         logger.debug("Import button clicked")
-        file_manager = self.QFileManager(S11Data.FILE_EXTENSION, parent=self.widget)
+        file_manager = self.FileManager(S11Data.FILE_EXTENSION, parent=self.widget)
         file_name = file_manager.loadFileDialog()
         if file_name:
             self.module.controller.load_measurement(file_name)
