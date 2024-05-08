@@ -1,3 +1,5 @@
+"""This module contains the view class for the AutoTM module."""
+
 import logging
 from datetime import datetime
 import cmath
@@ -27,7 +29,9 @@ logger = logging.getLogger(__name__)
 
 
 class AutoTMView(ModuleView):
+    """The view class for the AutoTM module."""
     def __init__(self, module):
+        """Initializes the AutoTM view."""
         super().__init__(module)
 
         widget = QWidget()
@@ -127,11 +131,27 @@ class AutoTMView(ModuleView):
         self._ui_form.startButton.setIconSize(self._ui_form.startButton.size())
 
         # Stepper selection
-        self._ui_form.stepperselectBox.currentIndexChanged.connect(lambda: self.module.controller.on_stepper_changed(self._ui_form.stepperselectBox.currentText()))
-        self._ui_form.increaseButton.clicked.connect(lambda: self.module.controller.on_relative_move(self._ui_form.stepsizeBox.text()))
-        self._ui_form.decreaseButton.clicked.connect(lambda: self.module.controller.on_relative_move("-" + self._ui_form.stepsizeBox.text()))
+        self._ui_form.stepperselectBox.currentIndexChanged.connect(
+            lambda: self.module.controller.on_stepper_changed(
+                self._ui_form.stepperselectBox.currentText()
+            )
+        )
+        self._ui_form.increaseButton.clicked.connect(
+            lambda: self.module.controller.on_relative_move(
+                self._ui_form.stepsizeBox.text()
+            )
+        )
+        self._ui_form.decreaseButton.clicked.connect(
+            lambda: self.module.controller.on_relative_move(
+                "-" + self._ui_form.stepsizeBox.text()
+            )
+        )
 
-        self._ui_form.absoluteGoButton.clicked.connect(lambda: self.module.controller.on_absolute_move(self._ui_form.absoluteposBox.text()))
+        self._ui_form.absoluteGoButton.clicked.connect(
+            lambda: self.module.controller.on_absolute_move(
+                self._ui_form.absoluteposBox.text()
+            )
+        )
 
         # Active  stepper changed
         self.module.model.active_stepper_changed.connect(self.on_active_stepper_changed)
@@ -175,6 +195,7 @@ class AutoTMView(ModuleView):
 
     def on_calibration_button_clicked(self) -> None:
         """This method is called when the calibration button is clicked.
+
         It opens the calibration window.
         """
         logger.debug("Calibration button clicked")
@@ -183,7 +204,11 @@ class AutoTMView(ModuleView):
 
     @pyqtSlot(list)
     def on_available_devices_changed(self, available_devices: list) -> None:
-        """Update the available devices list in the view."""
+        """Update the available devices list in the view.
+        
+        Args:
+            available_devices (list): List of available devices.
+        """
         logger.debug("Updating available devices list")
         self._ui_form.portBox.clear()
         self._ui_form.portBox.addItems(available_devices)
@@ -201,6 +226,7 @@ class AutoTMView(ModuleView):
     @pyqtSlot()
     def on_connect_button_clicked(self) -> None:
         """This method is called when the connect button is clicked.
+
         It calls the connect method of the controller with the currently selected device.
         """
         logger.debug("Connect button clicked")
@@ -217,7 +243,7 @@ class AutoTMView(ModuleView):
         logger.debug("Updating serial connection label")
         if serial.isOpen():
             self._ui_form.connectionLabel.setText(serial.portName())
-            self.add_info_text("Connected to device %s" % serial.portName())
+            self.add_info_text(f"Connected to device {serial.portName()}")
             # Change the connectButton to a disconnectButton
             self._ui_form.connectButton.setText("Disconnect")
         else:
@@ -231,7 +257,9 @@ class AutoTMView(ModuleView):
     def on_active_stepper_changed(self) -> None:
         """Update the stepper position label according to the current stepper position."""
         logger.debug("Updating stepper position label")
-        self._ui_form.stepperposLabel.setText(str(self.module.model.active_stepper.position))
+        self._ui_form.stepperposLabel.setText(
+            str(self.module.model.active_stepper.position)
+        )
         logger.debug("Updated stepper position label")
 
         # Only allow position change when stepper is  homed
@@ -253,6 +281,7 @@ class AutoTMView(ModuleView):
     @pyqtSlot()
     def on_position_button_clicked(self) -> None:
         """This method is called when the position button is clicked.
+
         It opens the position window.
         """
         logger.debug("Position button clicked")
@@ -263,7 +292,7 @@ class AutoTMView(ModuleView):
         """Update the S11 plot with the current data points.
 
         Args:
-            data_points (list): List of data points to plot.
+            data (S11Data): The current S11 data points.
 
         @TODO: implement proper calibration. See the controller class for more information.
         """
@@ -328,7 +357,7 @@ class AutoTMView(ModuleView):
         """
         # Add a timestamp to the text
         timestamp = datetime.now().strftime("%H:%M:%S")
-        text = "[%s] %s" % (timestamp, text)
+        text = f"[{timestamp}] {text}"
         text_label = QLabel(text)
         text_label.setStyleSheet("font-size: 25px;")
         self._ui_form.scrollAreaWidgetContents.layout().addWidget(text_label)
@@ -351,7 +380,7 @@ class AutoTMView(ModuleView):
         )
         # Add a timestamp to the text
         timestamp = datetime.now().strftime("%H:%M:%S")
-        text = "[%s] %s" % (timestamp, text)
+        text = f"[{timestamp}] {text}"
         text_label = QLabel(text)
         text_label.setStyleSheet("font-size: 25px; color: red;")
 
@@ -365,7 +394,9 @@ class AutoTMView(ModuleView):
 
     def create_frequency_sweep_spinner_dialog(self) -> None:
         """Creates a frequency sweep spinner dialog."""
-        self.frequency_sweep_spinner = self.LoadingSpinner("Performing frequency sweep ...", self)
+        self.frequency_sweep_spinner = self.LoadingSpinner(
+            "Performing frequency sweep ...", self
+        )
         self.frequency_sweep_spinner.show()
 
     def create_el_LUT_spinner_dialog(self) -> None:
@@ -375,7 +406,9 @@ class AutoTMView(ModuleView):
 
     def create_mech_LUT_spinner_dialog(self) -> None:
         """Creates a mechanical LUT spinner dialog."""
-        self.mech_LUT_spinner = self.LoadingSpinner("Generating mechanical LUT ...", self)
+        self.mech_LUT_spinner = self.LoadingSpinner(
+            "Generating mechanical LUT ...", self
+        )
         self.mech_LUT_spinner.show()
 
     def view_el_lut(self) -> None:
@@ -417,7 +450,9 @@ class AutoTMView(ModuleView):
             self.module.controller.load_measurement(file_name)
 
     class StepperSavedPositionsWindow(QDialog):
+        """This class implements a window that shows the saved positions of the stepper."""
         def __init__(self, module, parent=None):
+            """Initializes the StepperSavedPositionsWindow."""
             super().__init__(parent)
             self.setParent(parent)
             self.module = module
@@ -432,7 +467,13 @@ class AutoTMView(ModuleView):
             self.table_widget = QTableWidget()
             self.table_widget.setColumnCount(5)
             self.table_widget.setHorizontalHeaderLabels(
-                ["Frequency (MHz)", "Tuning Position", "Matching Position", "Button", "Delete"]
+                [
+                    "Frequency (MHz)",
+                    "Tuning Position",
+                    "Matching Position",
+                    "Button",
+                    "Delete",
+                ]
             )
 
             self.table_widget.setColumnWidth(0, 150)
@@ -461,8 +502,9 @@ class AutoTMView(ModuleView):
             main_layout.addWidget(self.table_widget)
 
             # On saved positions changed
-            self.module.model.saved_positions_changed.connect(self.on_saved_positions_changed)
-
+            self.module.model.saved_positions_changed.connect(
+                self.on_saved_positions_changed
+            )
 
             self.setLayout(main_layout)
 
@@ -482,13 +524,13 @@ class AutoTMView(ModuleView):
         def on_load_position_button_clicked(self) -> None:
             """File picker for loading a position from a file."""
             filename = self.file_selector("load")
-            logger.debug("Loading position from %s" % filename)
+            logger.debug(f"Loading position from {filename}")
             self.module.controller.load_positions(filename)
 
         def on_save_position_button_clicked(self) -> None:
             """File picker for saving a position to a file."""
             filename = self.file_selector("save")
-            logger.debug("Saving position to %s" % filename)
+            logger.debug(f"Saving position to {filename}")
             self.module.controller.save_positions(filename)
 
         def on_new_position_button_clicked(self) -> None:
@@ -497,9 +539,9 @@ class AutoTMView(ModuleView):
             self.new_position_window = self.NewPositionWindow(self.module, self)
             self.new_position_window.show()
 
-
         def on_saved_positions_changed(self) -> None:
             """This method is called when the saved positions changed.
+
             It updates the table widget.
             """
             logger.debug("Updating saved positions table")
@@ -508,7 +550,9 @@ class AutoTMView(ModuleView):
 
             for row, position in enumerate(self.module.model.saved_positions):
                 self.table_widget.insertRow(row)
-                self.table_widget.setItem(row, 0, QTableWidgetItem(str(position.frequency)))
+                self.table_widget.setItem(
+                    row, 0, QTableWidgetItem(str(position.frequency))
+                )
                 self.table_widget.setItem(
                     row, 1, QTableWidgetItem(position.tuning_position)
                 )
@@ -517,7 +561,8 @@ class AutoTMView(ModuleView):
                 )
                 go_button = QPushButton("Go")
                 go_button.clicked.connect(
-                    lambda _, position=position: self.module.controller.on_go_to_position(
+                    lambda _,
+                    position=position: self.module.controller.on_go_to_position(
                         position
                     )
                 )
@@ -525,16 +570,19 @@ class AutoTMView(ModuleView):
 
                 delete_button = QPushButton("Delete")
                 delete_button.clicked.connect(
-                    lambda _, position=position: self.module.controller.on_delete_position(
+                    lambda _,
+                    position=position: self.module.controller.on_delete_position(
                         position
                     )
                 )
                 self.table_widget.setCellWidget(row, 4, delete_button)
-                
+
             logger.debug("Updated saved positions table")
 
         class NewPositionWindow(QDialog):
+            """This class implements a window for adding a new position."""
             def __init__(self, module, parent=None):
+                """Initializes the NewPositionWindow."""
                 super().__init__(parent)
                 self.setParent(parent)
                 self.module = module
@@ -578,22 +626,32 @@ class AutoTMView(ModuleView):
                 data_layout = QVBoxLayout()
                 # Apply button
                 apply_button = QPushButton("Apply")
-                apply_button.clicked.connect(lambda: self.on_apply_button_clicked(frequency_edit.text(), tuning_edit.text(), matching_edit.text()))
+                apply_button.clicked.connect(
+                    lambda: self.on_apply_button_clicked(
+                        frequency_edit.text(), tuning_edit.text(), matching_edit.text()
+                    )
+                )
                 data_layout.addWidget(apply_button)
 
                 main_layout.addLayout(data_layout)
 
                 self.setLayout(main_layout)
 
-            def on_apply_button_clicked(self, frequency: str, tuning_position: str, matching_position: str) -> None:
+            def on_apply_button_clicked(
+                self, frequency: str, tuning_position: str, matching_position: str
+            ) -> None:
                 """This method is called when the apply button is clicked."""
-                self.module.controller.add_position(frequency, tuning_position, matching_position)
+                self.module.controller.add_position(
+                    frequency, tuning_position, matching_position
+                )
                 # Close the calibration window
                 self.close()
+
     class LoadingSpinner(QDialog):
         """This class implements a spinner dialog that is shown during a frequency sweep."""
 
-        def __init__(self, text : str, parent=None):
+        def __init__(self, text: str, parent=None):
+            """Initializes the LoadingSpinner."""
             super().__init__(parent)
             self.setWindowTitle("Loading")
             self.setModal(True)
@@ -611,7 +669,9 @@ class AutoTMView(ModuleView):
             self.spinner_movie.start()
 
     class LutWindow(QDialog):
+        """This class implements a window that shows the LUT."""
         def __init__(self, module, parent=None):
+            """Initializes the LutWindow."""
             super().__init__()
             self.module = module
             self.setParent(parent)
@@ -641,7 +701,7 @@ class AutoTMView(ModuleView):
                 self.table_widget.setHorizontalHeaderLabels(
                     ["Frequency (MHz)", "Tuning Voltage", "Matching Voltage"]
                 )
-            
+
             for row, frequency in enumerate(LUT.data.keys()):
                 self.table_widget.insertRow(row)
                 self.table_widget.setItem(row, 0, QTableWidgetItem(str(frequency)))
@@ -659,7 +719,9 @@ class AutoTMView(ModuleView):
                     tuning_voltage = str(LUT.data[frequency][0])
                     matching_voltage = str(LUT.data[frequency][1])
                     test_button.clicked.connect(
-                        lambda _, tuning_voltage=tuning_voltage, matching_voltage=matching_voltage: self.module.controller.set_voltages(
+                        lambda _,
+                        tuning_voltage=tuning_voltage,
+                        matching_voltage=matching_voltage: self.module.controller.set_voltages(
                             tuning_voltage, matching_voltage
                         )
                     )
@@ -668,11 +730,13 @@ class AutoTMView(ModuleView):
                     tuning_position = str(LUT.data[frequency][0])
                     matching_position = str(LUT.data[frequency][1])
                     test_button.clicked.connect(
-                        lambda _, tuning_position=tuning_position, matching_position=matching_position: self.module.controller.go_to_position(
+                        lambda _,
+                        tuning_position=tuning_position,
+                        matching_position=matching_position: self.module.controller.go_to_position(
                             tuning_position, matching_position
                         )
                     )
-                
+
                 self.table_widget.setCellWidget(row, 3, test_button)
 
             # Add table widget to main layout
@@ -681,6 +745,7 @@ class AutoTMView(ModuleView):
 
         def test_lut(self):
             """This method is called when the Test LUT button is clicked. It sets all of the voltages from the lut with a small delay.
+
             One can then view the matching on a seperate VNA.
             """
             # This should be in the controller
@@ -690,7 +755,9 @@ class AutoTMView(ModuleView):
                 self.module.controller.set_voltages(tuning_voltage, matching_voltage)
 
     class CalibrationWindow(QDialog):
+        """The calibration Dialog."""
         def __init__(self, module, parent=None):
+            """Initializes the CalibrationWindow."""
             super().__init__(parent)
             self.setParent(parent)
             self.module = module
@@ -791,18 +858,22 @@ class AutoTMView(ModuleView):
             )
 
         def on_short_calibration_finished(self, short_calibration: "S11Data") -> None:
+            """This method is called when the short calibration has finished. It plots the calibration data on the short_plot widget."""
             self.on_calibration_finished("short", self.short_plot, short_calibration)
 
         def on_open_calibration_finished(self, open_calibration: "S11Data") -> None:
+            """This method is called when the open calibration has finished. It plots the calibration data on the open_plot widget."""
             self.on_calibration_finished("open", self.open_plot, open_calibration)
 
         def on_load_calibration_finished(self, load_calibration: "S11Data") -> None:
+            """This method is called when the load calibration has finished. It plots the calibration data on the load_plot widget."""
             self.on_calibration_finished("load", self.load_plot, load_calibration)
 
         def on_calibration_finished(
             self, type: str, widget: MplWidget, data: "S11Data"
         ) -> None:
             """This method is called when a calibration has finished.
+
             It plots the calibration data on the given widget.
             """
             frequency = data.frequency
@@ -829,13 +900,14 @@ class AutoTMView(ModuleView):
             widget.canvas.flush_events()
 
         def on_export_button_clicked(self) -> None:
+            """Called when the export button was clicked."""
             filedialog = QFileDialog()
             filedialog.setAcceptMode(QFileDialog.AcceptMode.AcceptSave)
             filedialog.setNameFilter("calibration files (*.cal)")
             filedialog.setDefaultSuffix("cal")
             filedialog.exec()
             filename = filedialog.selectedFiles()[0]
-            logger.debug("Exporting calibration to %s" % filename)
+            logger.debug(f"Exporting calibration to {filename}")
             self.module.controller.export_calibration(filename)
 
         def on_import_button_clicked(self) -> None:
@@ -846,7 +918,7 @@ class AutoTMView(ModuleView):
             filedialog.setDefaultSuffix("cal")
             filedialog.exec()
             filename = filedialog.selectedFiles()[0]
-            logger.debug("Importing calibration from %s" % filename)
+            logger.debug(f"Importing calibration from {filename}")
             self.module.controller.import_calibration(filename)
 
         def on_apply_button_clicked(self) -> None:

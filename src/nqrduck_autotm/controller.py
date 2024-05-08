@@ -1,3 +1,5 @@
+"""The controller for the NQRduck AutoTM module."""
+
 import logging
 import time
 import numpy as np
@@ -8,47 +10,75 @@ from PyQt6.QtCore import pyqtSlot
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QApplication
 from nqrduck.module.module_controller import ModuleController
-from .model import S11Data, ElectricalLookupTable, MechanicalLookupTable, SavedPosition, Stepper
+from .model import (
+    S11Data,
+    ElectricalLookupTable,
+    MechanicalLookupTable,
+    SavedPosition,
+    Stepper,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class AutoTMController(ModuleController):
+    """The controller for the NQRduck AutoTM module. It handles the serial connection and the signals and slots."""
+
     BAUDRATE = 115200
 
-    def on_loading(self):
+    def on_loading(self) -> None:
         """This method is called when the module is loaded.
+
         It sets up the serial connection and connects the signals and slots.
         """
         logger.debug("Setting up serial connection")
         self.find_devices()
 
         # Connect signals
-        self.module.model.serial_data_received.connect(self.process_frequency_sweep_data)
+        self.module.model.serial_data_received.connect(
+            self.process_frequency_sweep_data
+        )
         self.module.model.serial_data_received.connect(self.process_measurement_data)
         self.module.model.serial_data_received.connect(self.process_calibration_data)
-        self.module.model.serial_data_received.connect(self.process_voltage_sweep_result)
+        self.module.model.serial_data_received.connect(
+            self.process_voltage_sweep_result
+        )
         self.module.model.serial_data_received.connect(self.print_info)
         self.module.model.serial_data_received.connect(self.read_position_data)
         self.module.model.serial_data_received.connect(self.process_reflection_data)
-        self.module.model.serial_data_received.connect(self.process_position_sweep_result)
+        self.module.model.serial_data_received.connect(
+            self.process_position_sweep_result
+        )
         self.module.model.serial_data_received.connect(self.process_signalpath_data)
 
     @pyqtSlot(str, object)
     def process_signals(self, key: str, value: object) -> None:
+        """Slot for setting the tune and match frequency.
+
+        Args:
+            key (str): The key of the signal. If the key is "set_tune_and_match", the tune and match method is called.
+            value (object): The value of the signal. The value is the frequency to tune and match to.
+        """
         logger.debug("Received signal: %s", key)
         if key == "set_tune_and_match":
             self.tune_and_match(value)
 
     def tune_and_match(self, frequency: float) -> None:
-        """This method is called when this module already has a LUT table. It should then tune and match the probe coil to the specified frequency.
+        """This method is called when this module already has a LUT table.
+
+        It should then tune and match the probe coil to the specified frequency.
+
+        Args:
+            frequency (float): The frequency to tune and match to.
         """
         if self.module.model.LUT is None:
             logger.error("Could not tune and match. No LUT available.")
             return
         elif self.module.model.LUT.TYPE == "Electrical":
-            tuning_voltage, matching_voltage = self.module.model.LUT.get_voltages(frequency)
-            confirmation = self.set_voltages(str(tuning_voltage), str(matching_voltage))
+            tuning_voltage, matching_voltage = self.module.model.LUT.get_voltages(
+                frequency
+            )
+            _ = self.set_voltages(str(tuning_voltage), str(matching_voltage))
             # We need to change the signal pathway to preamp to measure the reflection
             self.switch_to_atm()
             reflection = self.read_reflection(frequency)
@@ -57,7 +87,9 @@ class AutoTMController(ModuleController):
             self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection)
 
         elif self.module.model.LUT.TYPE == "Mechanical":
-            tuning_position, matching_position = self.module.model.LUT.get_positions(frequency)
+            tuning_position, matching_position = self.module.model.LUT.get_positions(
+                frequency
+            )
             self.go_to_position(tuning_position, matching_position)
             self.switch_to_atm()
             # Switch to atm to measure the reflection
@@ -68,7 +100,12 @@ class AutoTMController(ModuleController):
             # The Lime doesn"t like it if we send the command to switch to atm and then immediately send the command to measure the reflection.
             # So we wait a bit before starting the measurement
 
-            QTimer.singleShot(100, lambda: self.module.nqrduck_signal.emit("confirm_tune_and_match", reflection))
+            QTimer.singleShot(
+                100,
+                lambda: self.module.nqrduck_signal.emit(
+                    "confirm_tune_and_match", reflection
+                ),
+            )
 
     def find_devices(self) -> None:
         """Scan for available serial devices and add them to the model as available devices."""
@@ -127,6 +164,7 @@ class AutoTMController(ModuleController):
 
     def start_frequency_sweep(self, start_frequency: str, stop_frequency: str) -> None:
         """This starts a frequency sweep on the device in the specified range.
+
         The minimum start and stop frequency are specific to the AD4351 based frequency generator.
 
         Args:
@@ -162,13 +200,8 @@ class AutoTMController(ModuleController):
             return
 
         if start_frequency < MIN_FREQUENCY or stop_frequency > MAX_FREQUENCY:
-            error = (
-                "Could not start frequency sweep. Start and stop frequency must be between %s and %s MHz"
-                % (
-                    MIN_FREQUENCY / 1e6,
-                    MAX_FREQUENCY / 1e6,
-                )
-            )
+            error = f"Could not start frequency sweep. Start and stop frequency must be between {MIN_FREQUENCY / 1e6} and {MAX_FREQUENCY / 1e6} MHz"
+
             logger.error(error)
             self.module.view.add_info_text(error)
             return
@@ -182,7 +215,7 @@ class AutoTMController(ModuleController):
         )
 
         # Print the command 'f<start>f<stop>f<step>' to the serial connection
-        command = "f%sf%sf%s" % (start_frequency, stop_frequency, frequency_step)
+        command = f"f{start_frequency}f{stop_frequency}f{frequency_step}"
         self.module.model.frequency_sweep_start = time.time()
         confirmation = self.send_command(command)
         if confirmation:
@@ -191,20 +224,31 @@ class AutoTMController(ModuleController):
             self.module.view.create_frequency_sweep_spinner_dialog()
 
     @pyqtSlot(str)
-    def process_frequency_sweep_data(self, text : str) -> None:
+    def process_frequency_sweep_data(self, text: str) -> None:
         """This method is called when data is received from the serial connection during a frequency sweep.
+
         It processes the data and adds it to the model.
+
+        Args:
+            text (str): The data received from the serial connection.
         """
-        if text.startswith("f") and self.module.view.frequency_sweep_spinner.isVisible():
+        if (
+            text.startswith("f")
+            and self.module.view.frequency_sweep_spinner.isVisible()
+        ):
             text = text[1:].split("r")
             frequency = float(text[0])
             return_loss, phase = map(float, text[1].split("p"))
             self.module.model.add_data_point(frequency, return_loss, phase)
 
     @pyqtSlot(str)
-    def process_measurement_data(self, text : str) -> None:
+    def process_measurement_data(self, text: str) -> None:
         """This method is called when data is received from the serial connection during a measurement.
+
         It processes the data and adds it to the model.
+
+        Args:
+            text (str): The data received from the serial connection.
         """
         if self.module.model.active_calibration is None and text.startswith("r"):
             logger.debug("Measurement finished")
@@ -214,26 +258,35 @@ class AutoTMController(ModuleController):
             self.finish_frequency_sweep()
 
     @pyqtSlot(str)
-    def process_calibration_data(self, text : str) -> None:
+    def process_calibration_data(self, text: str) -> None:
         """This method is called when data is received from the serial connection during a calibration.
+
         It processes the data and adds it to the model.
-        
+
         Args:
-            calibration_type (str): The type of calibration that is being performed.
+            text (str): The data received from the serial connection.
         """
-        if text.startswith("r") and self.module.model.active_calibration in ["short", "open", "load"]:
-            calibration_type  = self.module.model.active_calibration
+        if text.startswith("r") and self.module.model.active_calibration in [
+            "short",
+            "open",
+            "load",
+        ]:
+            calibration_type = self.module.model.active_calibration
             logger.debug(f"{calibration_type.capitalize()} calibration finished")
-            setattr(self.module.model, f"{calibration_type}_calibration",
-                    S11Data(self.module.model.data_points.copy()))
+            setattr(
+                self.module.model,
+                f"{calibration_type}_calibration",
+                S11Data(self.module.model.data_points.copy()),
+            )
             self.module.model.active_calibration = None
             self.module.view.frequency_sweep_spinner.hide()
 
     @pyqtSlot(str)
-    def process_voltage_sweep_result(self, text : str) -> None:
+    def process_voltage_sweep_result(self, text: str) -> None:
         """This method is called when data is received from the serial connection during a voltage sweep.
+
         It processes the data and adds it to the model.
-        
+
         Args:
             text (str): The data received from the serial connection.
         """
@@ -243,27 +296,42 @@ class AutoTMController(ModuleController):
             LUT = self.module.model.el_lut
             if LUT is not None:
                 if LUT.is_incomplete():
-                        logger.debug("Received voltage sweep result: Tuning %s Matching %s", tuning_voltage, matching_voltage)
-                        LUT.add_voltages(tuning_voltage, matching_voltage)
-                        self.continue_or_finish_voltage_sweep(LUT)
+                    logger.debug(
+                        "Received voltage sweep result: Tuning %s Matching %s",
+                        tuning_voltage,
+                        matching_voltage,
+                    )
+                    LUT.add_voltages(tuning_voltage, matching_voltage)
+                    self.continue_or_finish_voltage_sweep(LUT)
 
             self.module.model.tuning_voltage = tuning_voltage
             self.module.model.matching_voltage = matching_voltage
-            logger.debug("Updated voltages: Tuning %s Matching %s", self.module.model.tuning_voltage, self.module.model.matching_voltage)
+            logger.debug(
+                "Updated voltages: Tuning %s Matching %s",
+                self.module.model.tuning_voltage,
+                self.module.model.matching_voltage,
+            )
 
-    def finish_frequency_sweep(self):
+    def finish_frequency_sweep(self) -> None:
         """This method is called when a frequency sweep is finished.
+
         It hides the frequency sweep spinner dialog and adds the data to the model.
         """
         self.module.view.frequency_sweep_spinner.hide()
         self.module.model.frequency_sweep_stop = time.time()
-        duration = self.module.model.frequency_sweep_stop - self.module.model.frequency_sweep_start
-        self.module.view.add_info_text(f"Frequency sweep finished in {duration:.2f} seconds")
+        duration = (
+            self.module.model.frequency_sweep_stop
+            - self.module.model.frequency_sweep_start
+        )
+        self.module.view.add_info_text(
+            f"Frequency sweep finished in {duration:.2f} seconds"
+        )
 
-    def continue_or_finish_voltage_sweep(self, LUT):
+    def continue_or_finish_voltage_sweep(self, LUT) -> None:
         """This method is called when a voltage sweep is finished.
+
         It checks if the voltage sweep is finished or if the next voltage sweep should be started.
-        
+
         Args:
             LUT (LookupTable): The lookup table that is being generated.
         """
@@ -274,10 +342,11 @@ class AutoTMController(ModuleController):
             # Finish voltage sweep
             self.finish_voltage_sweep(LUT)
 
-    def start_next_voltage_sweep(self, LUT):
+    def start_next_voltage_sweep(self, LUT) -> None:
         """This method is called when a voltage sweep is finished.
+
         It starts the next voltage sweep.
-        
+
         Args:
             LUT (LookupTable): The lookup table that is being generated.
         """
@@ -286,32 +355,38 @@ class AutoTMController(ModuleController):
         if self.module.view._ui_form.prevVoltagecheckBox.isChecked():
             # Command format is s<frequency in MHz>o<optional tuning voltage>o<optional matching voltage>
             # We use the currently set voltages
-            command = "s%so%so%s" % (next_frequency, self.module.model.tuning_voltage, self.module.model.matching_voltage)
+            command = f"s{next_frequency}o{self.module.model.tuning_voltage}o{self.module.model.matching_voltage}"
         else:
-            command = "s%s" % (next_frequency)
-            
+            command = f"s{next_frequency}"
+
         LUT.started_frequency = next_frequency
         logger.debug("Starting next voltage sweep: %s", command)
         self.send_command(command)
 
-    def finish_voltage_sweep(self, LUT):
+    def finish_voltage_sweep(self, LUT) -> None:
         """This method is called when a voltage sweep is finished.
+
         It hides the voltage sweep spinner dialog and adds the data to the model.
-        
+
         Args:
-        LUT (LookupTable): The lookup table that is being generated.
+            LUT (LookupTable): The lookup table that is being generated.
         """
         logger.debug("Voltage sweep finished")
         self.module.view.el_LUT_spinner.hide()
         self.module.model.LUT = LUT
         self.module.model.voltage_sweep_stop = time.time()
-        duration = self.module.model.voltage_sweep_stop - self.module.model.voltage_sweep_start
-        self.module.view.add_info_text(f"Voltage sweep finished in {duration:.2f} seconds")
+        duration = (
+            self.module.model.voltage_sweep_stop - self.module.model.voltage_sweep_start
+        )
+        self.module.view.add_info_text(
+            f"Voltage sweep finished in {duration:.2f} seconds"
+        )
         self.module.nqrduck_signal.emit("LUT_finished", LUT)
 
     @pyqtSlot(str)
-    def print_info(self, text : str) -> None:
+    def print_info(self, text: str) -> None:
         """This method is called when data is received from the serial connection.
+
         It prints the data to the info text box.
 
         Args:
@@ -323,10 +398,16 @@ class AutoTMController(ModuleController):
         elif text.startswith("e"):
             text = text[1:]
             self.module.view.add_error_text(text)
-    
+
     @pyqtSlot(str)
-    def read_position_data(self, text : str) -> None:
-        """This method is called when data is received from the serial connection."""
+    def read_position_data(self, text: str) -> None:
+        """This method is called when data is received from the serial connection.
+
+        It processes the data and adds it to the model.
+
+        Args:
+            text (str): The data received from the serial connection.
+        """
         if text.startswith("p"):
             # Format is p<tuning_position>m<matching_position>
             text = text[1:].split("m")
@@ -335,13 +416,17 @@ class AutoTMController(ModuleController):
             self.module.model.matching_stepper.position = matching_position
             self.module.model.tuning_stepper.homed = True
             self.module.model.matching_stepper.homed = True
-            logger.debug("Tuning position: %s, Matching position: %s", tuning_position, matching_position)
+            logger.debug(
+                "Tuning position: %s, Matching position: %s",
+                tuning_position,
+                matching_position,
+            )
             self.module.view.on_active_stepper_changed()
 
     def on_ready_read(self) -> None:
         """This method is called when data is received from the serial connection."""
         serial = self.module.model.serial
-        
+
         while serial.canReadLine():
             text = serial.readLine().data().decode().rstrip("\r\n")
             logger.debug("Received data: %s", text)
@@ -349,10 +434,11 @@ class AutoTMController(ModuleController):
             self.module.model.serial_data_received.emit(text)
 
     @pyqtSlot(str)
-    def process_reflection_data(self, text):
+    def process_reflection_data(self, text: str) -> None:
         """This method is called when data is received from the serial connection.
+
         It processes the data and adds it to the model.
-        
+
         Args:
             text (str): The data received from the serial connection.
         """
@@ -367,7 +453,12 @@ class AutoTMController(ModuleController):
         self, start_frequency: float, stop_frequency: float
     ) -> None:
         """This method is called when the short calibration button is pressed.
+
         It starts a frequency sweep in the specified range and then starts a short calibration.
+
+        Args:
+            start_frequency (float): The start frequency in MHz.
+            stop_frequency (float): The stop frequency in MHz.
         """
         logger.debug("Starting short calibration")
         self.module.model.init_short_calibration()
@@ -377,7 +468,12 @@ class AutoTMController(ModuleController):
         self, start_frequency: float, stop_frequency: float
     ) -> None:
         """This method is called when the open calibration button is pressed.
+
         It starts a frequency sweep in the specified range and then starts an open calibration.
+
+        Args:
+            start_frequency (float) : The start frequency in MHz.
+            stop_frequency (float) : The stop frequency in MHz.
         """
         logger.debug("Starting open calibration")
         self.module.model.init_open_calibration()
@@ -387,7 +483,12 @@ class AutoTMController(ModuleController):
         self, start_frequency: float, stop_frequency: float
     ) -> None:
         """This method is called when the load calibration button is pressed.
+
         It starts a frequency sweep in the specified range and then loads a calibration.
+
+        Args:
+            start_frequency (float) : The start frequency in MHz.
+            stop_frequency (float) : The stop frequency in MHz.
         """
         logger.debug("Starting load calibration")
         self.module.model.init_load_calibration()
@@ -395,6 +496,7 @@ class AutoTMController(ModuleController):
 
     def calculate_calibration(self) -> None:
         """This method is called when the calculate calibration button is pressed.
+
         It calculates the calibration from the short, open and calibration data points.
 
         @TODO: Improvements to the calibrations can be made the following ways:
@@ -406,17 +508,17 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Calculating calibration")
         # First we check if the short and open calibration data points are available
-        if self.module.model.short_calibration == None:
+        if self.module.model.short_calibration is None:
             logger.error(
                 "Could not calculate calibration. No short calibration data points available."
             )
             return
-        if self.module.model.open_calibration == None:
+        if self.module.model.open_calibration is None:
             logger.error(
                 "Could not calculate calibration. No open calibration data points available."
             )
             return
-        if self.module.model.load_calibration == None:
+        if self.module.model.load_calibration is None:
             logger.error(
                 "Could not calculate calibration. No load calibration data points available."
             )
@@ -459,6 +561,7 @@ class AutoTMController(ModuleController):
 
     def export_calibration(self, filename: str) -> None:
         """This method is called when the export calibration button is pressed.
+
         It exports the data of the short, open and load calibration to a file.
 
         Args:
@@ -466,19 +569,19 @@ class AutoTMController(ModuleController):
         """
         logger.debug("Exporting calibration")
         # First we check if the short and open calibration data points are available
-        if self.module.model.short_calibration == None:
+        if self.module.model.short_calibration is None:
             logger.error(
                 "Could not export calibration. No short calibration data points available."
             )
             return
 
-        if self.module.model.open_calibration == None:
+        if self.module.model.open_calibration is None:
             logger.error(
                 "Could not export calibration. No open calibration data points available."
             )
             return
 
-        if self.module.model.load_calibration == None:
+        if self.module.model.load_calibration is None:
             logger.error(
                 "Could not export calibration. No load calibration data points available."
             )
@@ -496,6 +599,7 @@ class AutoTMController(ModuleController):
 
     def import_calibration(self, filename: str) -> None:
         """This method is called when the import calibration button is pressed.
+
         It imports the data of the short, open and load calibration from a file.
 
         Args:
@@ -528,7 +632,7 @@ class AutoTMController(ModuleController):
 
     def load_measurement(self, filename: str) -> None:
         """Load measurement from file.
-        
+
         Args:
             filename (str): Path to file.
         """
@@ -542,6 +646,7 @@ class AutoTMController(ModuleController):
 
     def set_voltages(self, tuning_voltage: str, matching_voltage: str) -> None:
         """This method is called when the set voltages button is pressed.
+
         It writes the specified tuning and matching voltage to the serial connection.
 
         Args:
@@ -583,16 +688,22 @@ class AutoTMController(ModuleController):
             matching_voltage,
         )
 
-        if tuning_voltage == self.module.model.tuning_voltage and matching_voltage == self.module.model.matching_voltage:
+        if (
+            tuning_voltage == self.module.model.tuning_voltage
+            and matching_voltage == self.module.model.matching_voltage
+        ):
             logger.debug("Voltages already set")
             return
-        
-        command = "v%sv%s" % (tuning_voltage, matching_voltage)
-        
+
+        command = f"v{tuning_voltage}v{matching_voltage}"
+
         start_time = time.time()
 
         confirmation = self.send_command(command)
-        while matching_voltage != self.module.model.matching_voltage and tuning_voltage != self.module.model.tuning_voltage:
+        while (
+            matching_voltage != self.module.model.matching_voltage
+            and tuning_voltage != self.module.model.tuning_voltage
+        ):
             QApplication.processEvents()
             # Check for timeout
             if time.time() - start_time > timeout_duration:
@@ -604,7 +715,7 @@ class AutoTMController(ModuleController):
         else:
             logger.error("Could not set voltages")
             return confirmation
- 
+
     ### Electrical Lookup Table ###
 
     def generate_electrical_lut(
@@ -614,6 +725,7 @@ class AutoTMController(ModuleController):
         frequency_step: str,
     ) -> None:
         """This method is called when the generate LUT button is pressed.
+
         It generates a lookup table for the specified frequency range and voltage resolution.
 
         Args:
@@ -635,11 +747,7 @@ class AutoTMController(ModuleController):
             self.module.view.add_info_text(error)
             return
 
-        if (
-            start_frequency < 0
-            or stop_frequency < 0
-            or frequency_step < 0
-        ):
+        if start_frequency < 0 or stop_frequency < 0 or frequency_step < 0:
             error = "Could not generate LUT. Start frequency, stop frequency, frequency step must be positive"
             logger.error(error)
             self.module.view.add_info_text(error)
@@ -669,9 +777,7 @@ class AutoTMController(ModuleController):
         # self.set_voltages("0", "0")
 
         # We create the lookup table
-        LUT = ElectricalLookupTable(
-            start_frequency, stop_frequency, frequency_step
-        )
+        LUT = ElectricalLookupTable(start_frequency, stop_frequency, frequency_step)
 
         LUT.started_frequency = start_frequency
 
@@ -679,27 +785,32 @@ class AutoTMController(ModuleController):
         if self.module.view._ui_form.prevVoltagecheckBox.isChecked():
             # Command format is s<frequency in MHz>o<optional tuning voltage>o<optional matching voltage>
             # We use the currently set voltages
-            logger.debug("Starting preset Voltage sweep with voltage Tuning: %s V and Matching: %s V", self.module.model.tuning_voltage, self.module.model.matching_voltage)
-            command = "s%so%so%s" % (start_frequency, self.module.model.tuning_voltage, self.module.model.matching_voltage)
+            logger.debug(
+                "Starting preset Voltage sweep with voltage Tuning: %s V and Matching: %s V",
+                self.module.model.tuning_voltage,
+                self.module.model.matching_voltage,
+            )
+            command = f"s{start_frequency}o{self.module.model.tuning_voltage}o{self.module.model.matching_voltage}"
         else:
-            command = "s%s" % (start_frequency)
-        
+            command = f"s{start_frequency}"
+
         # For timing of the voltage sweep
         self.module.model.voltage_sweep_start = time.time()
         confirmation = self.send_command(command)
-        # If the command was send successfully, we set the LUT 
+        # If the command was send successfully, we set the LUT
         if confirmation:
             self.module.model.el_lut = LUT
             self.module.view.create_el_LUT_spinner_dialog()
 
     def switch_to_preamp(self) -> None:
         """This method is used to send the command 'cp' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'Preamp'.
+
         This is the mode for either NQR or NMR measurements or if on wants to check the tuning of the probe coil on a network analyzer.
         """
         if self.module.model.signal_path == "preamp":
             logger.debug("Already in preamp")
             return
-        
+
         TIMEOUT = 1  # s
         logger.debug("Switching to preamp")
         self.send_command("cp")
@@ -714,12 +825,13 @@ class AutoTMController(ModuleController):
 
     def switch_to_atm(self) -> None:
         """This method is used to send the command 'ca' to the atm system. This switches the signal pathway of the atm system to 'RX' to 'ATM.
+
         In this state the atm system can be used to measure the reflection coefficient of the probecoils.
         """
         if self.module.model.signal_path == "atm":
             logger.debug("Already in atm mode")
             return
-        
+
         TIMEOUT = 1  # s
         logger.debug("Switching to atm")
         self.send_command("ca")
@@ -732,10 +844,11 @@ class AutoTMController(ModuleController):
                 logger.error("Switching to atm timed out")
                 break
 
-    def process_signalpath_data(self, text : str) -> None:
+    def process_signalpath_data(self, text: str) -> None:
         """This method is called when data is received from the serial connection.
+
         It processes the data and adds it to the model.
-        
+
         Args:
             text (str): The data received from the serial connection.
         """
@@ -765,7 +878,7 @@ class AutoTMController(ModuleController):
             )
             return False
 
-        if self.module.model.serial.isOpen() == False:
+        if self.module.model.serial.isOpen() is False:
             logger.error("Could not send command. Serial connection is not open")
             self.module.view.add_error_text(
                 "Could not send command. Serial connection is not open"
@@ -796,12 +909,13 @@ class AutoTMController(ModuleController):
 
         except Exception as e:
             logger.error("Could not send command. %s", e)
-            self.module.view.add_error_text("Could not send command. %s" % e)
+            self.module.view.add_error_text(f"Could not send command. {e}")
 
     ### Stepper Motor Control ###
 
     def homing(self) -> None:
         """This method is used to send the command 'h' to the atm system.
+
         This command is used to home the stepper motors of the atm system.
         """
         logger.debug("Homing")
@@ -812,6 +926,7 @@ class AutoTMController(ModuleController):
     @pyqtSlot(str)
     def on_stepper_changed(self, stepper: str) -> None:
         """This method is called when the stepper position is changed.
+
         It sends the command to the atm system to change the stepper position.
 
         Args:
@@ -824,25 +939,52 @@ class AutoTMController(ModuleController):
         elif stepper == "matching":
             self.module.model.active_stepper = self.module.model.matching_stepper
 
-    def validate_position(self, future_position: int, stepper  : Stepper) -> bool:
-        """Validate the stepper's future position."""
+    def validate_position(self, future_position: int, stepper: Stepper) -> bool:
+        """Validate the stepper's future position.
+        
+        Args:
+            future_position (int): The future position of the stepper.
+            stepper (Stepper): The stepper that is being moved.
+        
+        Returns:
+            bool: True if the position is valid, False otherwise.
+        """
         if future_position < 0:
-            self.module.view.add_error_text("Could not move stepper. Stepper position cannot be negative")
+            self.module.view.add_error_text(
+                "Could not move stepper. Stepper position cannot be negative"
+            )
             return False
 
         if future_position > stepper.MAX_STEPS:
-            self.module.view.add_error_text(f"Could not move stepper. Stepper position cannot be larger than {stepper.MAX_STEPS}")
+            self.module.view.add_error_text(
+                f"Could not move stepper. Stepper position cannot be larger than {stepper.MAX_STEPS}"
+            )
             return False
 
         return True
 
-    def calculate_steps_for_absolute_move(self, target_position: int, stepper : Stepper) -> int:
-        """Calculate the number of steps for an absolute move."""
+    def calculate_steps_for_absolute_move(
+        self, target_position: int, stepper: Stepper
+    ) -> int:
+        """Calculate the number of steps for an absolute move.
+        
+        Args:
+            target_position (int): The target position of the stepper.
+            stepper (Stepper): The stepper that is being moved.
+            
+        Returns:
+            int: The number of steps to move.
+        """
         current_position = stepper.position
         return target_position - current_position
 
-    def send_stepper_command(self, steps: int, stepper : Stepper) -> None:
-        """Send a command to the stepper motor based on the number of steps."""
+    def send_stepper_command(self, steps: int, stepper: Stepper) -> None:
+        """Send a command to the stepper motor based on the number of steps.
+        
+        Args:
+            steps (int): The number of steps to move.
+            stepper (Stepper): The stepper that is being moved.
+        """
         # Here we handle backlash of the tuner
         # Determine the direction of the current steps
         backlash = 0
@@ -862,7 +1004,12 @@ class AutoTMController(ModuleController):
         return confirmation
 
     def on_relative_move(self, steps: str, stepper: Stepper = None) -> None:
-        """This method is called when the relative move button is pressed."""
+        """This method is called when the relative move button is pressed.
+        
+        Args:
+            steps (str): The number of steps to move.
+            stepper (Stepper): The stepper that is being moved. Default is None.
+        """
         timeout_duration = 15  # timeout in seconds
         start_time = time.time()
 
@@ -874,9 +1021,11 @@ class AutoTMController(ModuleController):
         if future_position == stepper_position:
             logger.debug("Stepper already at position")
             return
-        
+
         if self.validate_position(future_position, stepper):
-            confirmation = self.send_stepper_command(int(steps), stepper)  # Convert the steps string to an integer
+            confirmation = self.send_stepper_command(
+                int(steps), stepper
+            )  # Convert the steps string to an integer
 
             while stepper_position == stepper.position:
                 QApplication.processEvents()
@@ -888,7 +1037,12 @@ class AutoTMController(ModuleController):
             return confirmation
 
     def on_absolute_move(self, steps: str, stepper: Stepper = None) -> None:
-        """This method is called when the absolute move button is pressed."""
+        """This method is called when the absolute move button is pressed.
+        
+        Args:
+            steps (str): The number of steps to move.
+            stepper (Stepper): The stepper that is being moved. Default is None.
+        """
         timeout_duration = 15  # timeout in seconds
         start_time = time.time()
 
@@ -903,7 +1057,9 @@ class AutoTMController(ModuleController):
             return
 
         if self.validate_position(future_position, stepper):
-            actual_steps = self.calculate_steps_for_absolute_move(future_position, stepper)
+            actual_steps = self.calculate_steps_for_absolute_move(
+                future_position, stepper
+            )
             confirmation = self.send_stepper_command(actual_steps, stepper)
 
             while stepper_position == stepper.position:
@@ -917,9 +1073,9 @@ class AutoTMController(ModuleController):
 
     ### Position Saving and Loading ###
 
-    def load_positions(self, path : str) -> None:
+    def load_positions(self, path: str) -> None:
         """Load the saved positions from a json file.
-        
+
         Args:
             path (str): The path to the json file.
         """
@@ -930,12 +1086,15 @@ class AutoTMController(ModuleController):
             positions = json.load(f)
             for position in positions:
                 logger.debug("Loading position: %s", position)
-                self.add_position(position["frequency"], position["tuning_position"], position["matching_position"])
-
+                self.add_position(
+                    position["frequency"],
+                    position["tuning_position"],
+                    position["matching_position"],
+                )
 
     def save_positions(self, path: str) -> None:
         """Save the current positions to a json file.
-        
+
         Args:
             path (str): The path to the json file.
         """
@@ -944,43 +1103,52 @@ class AutoTMController(ModuleController):
             json_position = [position.to_json() for position in positions]
             json.dump(json_position, f)
 
-    def add_position(self, frequency: str, tuning_position: str, matching_position: str) -> None:
+    def add_position(
+        self, frequency: str, tuning_position: str, matching_position: str
+    ) -> None:
         """Add a position to the lookup table.
-        
+
         Args:
             frequency (str): The frequency of the position.
             tuning_position (str): The tuning position.
             matching_position (str): The matching position.
         """
         logger.debug("Adding new position at %s MHz", frequency)
-        self.module.model.add_saved_position(frequency, tuning_position, matching_position)
+        self.module.model.add_saved_position(
+            frequency, tuning_position, matching_position
+        )
 
     def on_go_to_position(self, position: SavedPosition) -> None:
         """Go to the specified position.
-        
+
         Args:
             position (SavedPosition): The position to go to.
         """
         logger.debug("Going to position: %s", position)
-        confirmation = self.on_absolute_move(position.tuning_position, self.module.model.tuning_stepper)
+        confirmation = self.on_absolute_move(
+            position.tuning_position, self.module.model.tuning_stepper
+        )
         if confirmation:
-            self.on_absolute_move(position.matching_position, self.module.model.matching_stepper)
+            self.on_absolute_move(
+                position.matching_position, self.module.model.matching_stepper
+            )
 
     def on_delete_position(self, position: SavedPosition) -> None:
         """Delete the specified position.
-        
+
         Args:
             position (SavedPosition): The position to delete.
         """
         logger.debug("Deleting position: %s", position)
         self.module.model.delete_saved_position(position)
 
-
     #### Mechanical tuning and matching ####
 
-    def generate_mechanical_lut(self, start_frequency: str, stop_frequency: str, frequency_step: str) -> None:
+    def generate_mechanical_lut(
+        self, start_frequency: str, stop_frequency: str, frequency_step: str
+    ) -> None:
         """Generate a lookup table for the specified frequency range and voltage resolution.
-        
+
         Args:
             start_frequency (str): The start frequency in Hz.
             stop_frequency (str): The stop frequency in Hz.
@@ -999,11 +1167,7 @@ class AutoTMController(ModuleController):
             self.module.view.add_info_text(error)
             return
 
-        if (
-            start_frequency < 0
-            or stop_frequency < 0
-            or frequency_step < 0
-        ):
+        if start_frequency < 0 or stop_frequency < 0 or frequency_step < 0:
             error = "Could not generate LUT. Start frequency, stop frequency, frequency step must be positive"
             logger.error(error)
             self.module.view.add_info_text(error)
@@ -1032,9 +1196,7 @@ class AutoTMController(ModuleController):
         self.switch_to_atm()
 
         # We create the lookup table
-        LUT = MechanicalLookupTable(
-            start_frequency, stop_frequency, frequency_step
-        )
+        LUT = MechanicalLookupTable(start_frequency, stop_frequency, frequency_step)
 
         # Lock GUI
         self.module.view.create_mech_LUT_spinner_dialog()
@@ -1043,9 +1205,12 @@ class AutoTMController(ModuleController):
 
         self.start_next_mechTM(LUT)
 
-
-    def start_next_mechTM(self, LUT):
-        """Start the next mechanical tuning and matching sweep."""
+    def start_next_mechTM(self, LUT) -> None:
+        """Start the next mechanical tuning and matching sweep.
+        
+        Args:
+            LUT (MechanicalLookupTable): The lookup table.
+        """
         next_frequency = LUT.get_next_frequency()
         LUT.started_frequency = next_frequency
         logger.debug("Starting next mechanical tuning and matching:")
@@ -1068,10 +1233,15 @@ class AutoTMController(ModuleController):
         matching_last_direction = self.module.model.matching_stepper.last_direction
         command = f"p{next_frequency}t{TUNING_RANGE},{TUNER_STEP_SIZE},{tuning_backlash},{tuning_last_direction}m{MATCHING_RANGE},{MATCHER_STEP_SIZE},{matching_backlash},{matching_last_direction}"
 
-        confirmation = self.send_command(command)
+        _ = self.send_command(command)
 
     @pyqtSlot(str)
-    def process_position_sweep_result(self, text):
+    def process_position_sweep_result(self, text) -> None:
+        """Process the result of the position sweep.
+        
+        Args:
+            text (str): The text received from the serial connection.
+        """
         if text.startswith("z"):
             text = text[1:]
             # Format is z<tuning_position>,<tuning_last_direction>m<matching_position>,<matching_last_direction>
@@ -1088,44 +1258,71 @@ class AutoTMController(ModuleController):
             self.module.model.matching_stepper.position = matching_position
             self.module.view.on_active_stepper_changed()
 
-            logger.debug("Tuning position: %s, Matching position: %s", tuning_position, matching_position)
+            logger.debug(
+                "Tuning position: %s, Matching position: %s",
+                tuning_position,
+                matching_position,
+            )
 
             LUT = self.module.model.mech_lut
-            logger.debug("Received position sweep result: %s %s", matching_position, tuning_position)
+            logger.debug(
+                "Received position sweep result: %s %s",
+                matching_position,
+                tuning_position,
+            )
             LUT.add_positions(tuning_position, matching_position)
             self.continue_or_finish_position_sweep(LUT)
 
-    def continue_or_finish_position_sweep(self, LUT):
-        """Continue or finish the position sweep."""
+    def continue_or_finish_position_sweep(self, LUT) -> None:
+        """Continue or finish the position sweep.
+        
+        Args:
+            LUT (MechanicalLookupTable): The lookup table.
+        """
         if LUT.is_incomplete():
             self.start_next_mechTM(LUT)
         else:
             self.finish_position_sweep(LUT)
 
-    def finish_position_sweep(self, LUT):
-        """Finish the position sweep."""
+    def finish_position_sweep(self, LUT) -> None:
+        """Finish the position sweep.
+        
+        Args:
+            LUT (MechanicalLookupTable): The lookup table.
+        """
         logger.debug("Finished position sweep")
         self.module.model.mech_lut = LUT
         self.module.model.LUT = LUT
         self.module.view.mech_LUT_spinner.hide()
         self.module.nqrduck_signal.emit("LUT_finished", LUT)
 
-    def go_to_position(self, tuning_position : int, matching_position : int) -> None:
+    def go_to_position(self, tuning_position: int, matching_position: int) -> None:
         """Go to the specified position.
-        
+
         Args:
-            position (SavedPosition): The position to go to.
+            tuning_position (int): The tuning position.
+            matching_position (int): The matching position.
         """
-        confirmation = self.on_absolute_move(tuning_position, self.module.model.tuning_stepper)
+        confirmation = self.on_absolute_move(
+            tuning_position, self.module.model.tuning_stepper
+        )
         if confirmation:
-            confirmation = self.on_absolute_move(matching_position, self.module.model.matching_stepper)
+            confirmation = self.on_absolute_move(
+                matching_position, self.module.model.matching_stepper
+            )
             if confirmation:
                 return True
 
-    
     # This method isn't used anymore but it might be useful in the future so I'll keep it here
-    def read_reflection(self, frequency) -> float:
-        """Starts a reflection measurement and reads the reflection at the specified frequency."""
+    def read_reflection(self, frequency : float) -> float:
+        """Starts a reflection measurement and reads the reflection at the specified frequency.
+        
+        Args:
+            frequency (float): The frequency at which to read the reflection.
+            
+        Returns:
+            float: The reflection at the specified frequency.
+        """
         # We send the command to the atm system
         command = f"r{frequency}"
         try:
@@ -1143,8 +1340,13 @@ class AutoTMController(ModuleController):
                 while reflection is None:
                     # Check if the timeout has been reached
                     if time.time() - start_time > timeout_duration:
-                        logger.error("Reading reflection timed out after %d seconds", timeout_duration)
-                        self.module.view.add_error_text(f"Could not read reflection. Timed out after {timeout_duration} seconds")
+                        logger.error(
+                            "Reading reflection timed out after %d seconds",
+                            timeout_duration,
+                        )
+                        self.module.view.add_error_text(
+                            f"Could not read reflection. Timed out after {timeout_duration} seconds"
+                        )
                         return None
 
                     # Refresh the reflection data
@@ -1163,12 +1365,12 @@ class AutoTMController(ModuleController):
 
             else:
                 logger.error("Could not read reflection. No confirmation received")
-                self.module.view.add_error_text("Could not read reflection. No confirmation received")
+                self.module.view.add_error_text(
+                    "Could not read reflection. No confirmation received"
+                )
                 return None
 
         except Exception as e:
             logger.error("Could not read reflection. %s", e)
             self.module.view.add_error_text(f"Could not read reflection. {e}")
             return None
-
-

@@ -1,3 +1,10 @@
+"""The module model for the NQRduck AutoTM module. It is used to store the data and state of the AutoTM module.
+
+Additionally it includes the LookupTable class which is used to store tuning and matching voltages for different frequencies.
+
+The S11Data class is used to store the S11 data that is read in via the serial connection.
+"""
+
 import cmath
 import numpy as np
 import logging
@@ -10,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class S11Data:
+    """This class is used to store the S11 data that is read in via the serial connection."""
     FILE_EXTENSION = "s11"
     # Conversion factors - the data is generally sent and received in mV
     # These values are used to convert the data to dB and degrees
@@ -19,26 +27,32 @@ class S11Data:
     PHASE_SLOPE = 10  # deg/mV
 
     def __init__(self, data_points: list) -> None:
+        """Initialize the S11 data."""
         self.frequency = np.array([data_point[0] for data_point in data_points])
         self.return_loss_mv = np.array([data_point[1] for data_point in data_points])
         self.phase_mv = np.array([data_point[2] for data_point in data_points])
 
     @property
     def millivolts(self):
+        """The reflection data in millivolts. This is the raw data that is read in via the serial connection."""
         return self.frequency, self.return_loss_mv, self.phase_mv
 
     @property
     def return_loss_db(self):
+        """Returns the return loss in dB calculated from the return loss in mV."""
         return (
             self.return_loss_mv - self.CENTER_POINT_MAGNITUDE
         ) / self.MAGNITUDE_SLOPE
 
     @property
-    def phase_deg(self, phase_correction=True):
-        """Returns the absolute value of the phase in degrees
+    def phase_deg(self, phase_correction=True) -> np.array:
+        """Returns the absolute value of the phase in degrees.
 
-        Keyword Arguments:
-            phase_correction {bool} -- If True, the phase correction is applied. (default: {False})
+        Args:
+            phase_correction (bool, optional): If True, the phase correction is applied. Defaults to True.
+
+        Returns:
+            np.array: The absolute value of the phase in degrees.
         """
         phase_deg = (self.phase_mv - self.CENTER_POINT_PHASE) / self.PHASE_SLOPE
         if phase_correction:
@@ -48,11 +62,12 @@ class S11Data:
 
     @property
     def phase_rad(self):
+        """Returns the phase in radians."""
         return self.phase_deg * cmath.pi / 180
 
     @property
     def gamma(self):
-        """Complex reflection coefficient"""
+        """Complex reflection coefficient."""
         if len(self.return_loss_db) != len(self.phase_rad):
             raise ValueError("return_loss_db and phase_rad must be the same length")
 
@@ -65,6 +80,7 @@ class S11Data:
         self, frequency_data: np.array, phase_data: np.array
     ) -> np.array:
         """This method fixes the phase sign of the phase data.
+
         The AD8302 can only measure the absolute value of the phase.
         Therefore we need to correct the phase sign. This can be done via the slope of the phase.
         If the slope is negative, the phase is positive and vice versa.
@@ -145,6 +161,7 @@ class S11Data:
         return phase_data_corrected
 
     def to_json(self):
+        """Convert the S11 data to a JSON serializable format."""
         return {
             "frequency": self.frequency.tolist(),
             "return_loss_mv": self.return_loss_mv.tolist(),
@@ -153,6 +170,7 @@ class S11Data:
 
     @classmethod
     def from_json(cls, json):
+        """Create an S11Data object from a JSON serializable format."""
         f = json["frequency"]
         rl = json["return_loss_mv"]
         p = json["phase_mv"]
@@ -171,13 +189,14 @@ class LookupTable:
         stop_frequency: float,
         frequency_step: float,
     ) -> None:
+        """Initialize the lookup table."""
         self.start_frequency = start_frequency
         self.stop_frequency = stop_frequency
         self.frequency_step = frequency_step
 
         # This is the frequency at which the tuning and matching process was started
         self.started_frequency = None
-    
+
     def get_entry_number(self, frequency: float) -> int:
         """This method returns the entry number of the given frequency.
 
@@ -190,57 +209,78 @@ class LookupTable:
         # Round to closest integer
         return int(round((frequency - self.start_frequency) / self.frequency_step))
 
-class Stepper:
 
+class Stepper:
+    """This class is used to store the state of a stepper motor."""
     def __init__(self) -> None:
+        """Initialize the stepper motor."""
         self.homed = False
         self.position = 0
 
+
 class SavedPosition:
     """This class is used to store a saved position for tuning and matching of electrical probeheads."""
-    def __init__(self, frequency: float, tuning_position : int, matching_position : int) -> None:
+
+    def __init__(
+        self, frequency: float, tuning_position: int, matching_position: int
+    ) -> None:
+        """Initialize the saved position."""
         self.frequency = frequency
         self.tuning_position = tuning_position
         self.matching_position = matching_position
 
     def to_json(self):
+        """Convert the saved position to a JSON serializable format."""
         return {
             "frequency": self.frequency,
             "tuning_position": self.tuning_position,
             "matching_position": self.matching_position,
         }
 
+
 class TuningStepper(Stepper):
+    """This class is used to store the state of the tuning stepper motor."""
     TYPE = "Tuning"
     MAX_STEPS = 1e6
     BACKLASH_STEPS = 60
 
     def __init__(self) -> None:
+        """Initialize the tuning stepper motor."""
         super().__init__()
-        # Backlash stepper 
+        # Backlash stepper
         self.last_direction = None
-    
+
+
 class MatchingStepper(Stepper):
+    """This class is used to store the state of the matching stepper motor."""
     TYPE = "Matching"
     MAX_STEPS = 1e6
 
     BACKLASH_STEPS = 0
 
     def __init__(self) -> None:
+        """Initialize the matching stepper motor."""
         super().__init__()
         self.last_direction = None
 
+
 class ElectricalLookupTable(LookupTable):
+    """This class is used to store a lookup table for tuning and matching of electrical probeheads."""
     TYPE = "Electrical"
 
-    def __init__(self, start_frequency: float, stop_frequency: float, frequency_step: float) -> None:
+    def __init__(
+        self, start_frequency: float, stop_frequency: float, frequency_step: float
+    ) -> None:
+        """Initialize the lookup table."""
         super().__init__(start_frequency, stop_frequency, frequency_step)
         self.init_voltages()
 
     def init_voltages(self) -> None:
         """Initialize the lookup table with default values."""
         for frequency in np.arange(
-            self.start_frequency, self.stop_frequency + self.frequency_step, self.frequency_step
+            self.start_frequency,
+            self.stop_frequency + self.frequency_step,
+            self.frequency_step,
         ):
             self.started_frequency = frequency
             self.add_voltages(None, None)
@@ -250,7 +290,7 @@ class ElectricalLookupTable(LookupTable):
 
         Args:
             tuning_voltage (float): The tuning voltage for the given frequency.
-        matching_voltage (float): The matching voltage for the given frequency.
+            matching_voltage (float): The matching voltage for the given frequency.
         """
         self.data[self.started_frequency] = (tuning_voltage, matching_voltage)
 
@@ -266,10 +306,11 @@ class ElectricalLookupTable(LookupTable):
         entry_number = self.get_entry_number(frequency)
         key = list(self.data.keys())[entry_number]
         return self.data[key]
-    
+
     def is_incomplete(self) -> bool:
-        """This method returns True if the lookup table is incomplete,
-        i.e. if there are frequencies for which no the tuning or matching voltage is none.
+        """This method returns True if the lookup table is incomplete.
+
+        I.e. if there are frequencies for which no the tuning or matching voltage is none.
 
         Returns:
             bool: True if the lookup table is incomplete, False otherwise.
@@ -293,19 +334,25 @@ class ElectricalLookupTable(LookupTable):
 
         return None
 
+
 class MechanicalLookupTable(LookupTable):
+    """This class is used to store a lookup table for tuning and matching of mechanical probeheads."""
     # Hmm duplicate code
     TYPE = "Mechanical"
-    
 
-    def __init__(self, start_frequency: float, stop_frequency: float, frequency_step: float) -> None:
+    def __init__(
+        self, start_frequency: float, stop_frequency: float, frequency_step: float
+    ) -> None:
+        """Initialize the lookup table."""
         super().__init__(start_frequency, stop_frequency, frequency_step)
         self.init_positions()
 
     def init_positions(self) -> None:
         """Initialize the lookup table with default values."""
         for frequency in np.arange(
-            self.start_frequency, self.stop_frequency + self.frequency_step, self.frequency_step
+            self.start_frequency,
+            self.stop_frequency + self.frequency_step,
+            self.frequency_step,
         ):
             self.started_frequency = frequency
             self.add_positions(None, None)
@@ -315,7 +362,7 @@ class MechanicalLookupTable(LookupTable):
 
         Args:
             tuning_position (int): The tuning position for the given frequency.
-        matching_position (int): The matching position for the given frequency.
+            matching_position (int): The matching position for the given frequency.
         """
         self.data[self.started_frequency] = (tuning_position, matching_position)
 
@@ -331,10 +378,11 @@ class MechanicalLookupTable(LookupTable):
         entry_number = self.get_entry_number(frequency)
         key = list(self.data.keys())[entry_number]
         return self.data[key]
-    
+
     def is_incomplete(self) -> bool:
-        """This method returns True if the lookup table is incomplete,
-        i.e. if there are frequencies for which no the tuning or matching position is none.
+        """This method returns True if the lookup table is incomplete.
+
+        I.e. if there are frequencies for which no the tuning or matching position is none.
 
         Returns:
             bool: True if the lookup table is incomplete, False otherwise.
@@ -345,7 +393,7 @@ class MechanicalLookupTable(LookupTable):
                 for tuning_position, matching_position in self.data.values()
             ]
         )
-    
+
     def get_next_frequency(self) -> float:
         """This method returns the next frequency for which the tuning and matching position is not yet set.
 
@@ -357,8 +405,10 @@ class MechanicalLookupTable(LookupTable):
                 return frequency
 
         return None
-class AutoTMModel(ModuleModel):
 
+
+class AutoTMModel(ModuleModel):
+    """The module model for the NQRduck AutoTM module. It is used to store the data and state of the AutoTM module."""
     available_devices_changed = pyqtSignal(list)
     serial_changed = pyqtSignal(QSerialPort)
     data_points_changed = pyqtSignal(list)
@@ -372,6 +422,7 @@ class AutoTMModel(ModuleModel):
     measurement_finished = pyqtSignal(S11Data)
 
     def __init__(self, module) -> None:
+        """Initialize the AutoTM model."""
         super().__init__(module)
         self.data_points = []
         self.active_calibration = None
@@ -398,6 +449,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def available_devices(self):
+        """The available_devices property is used to store the available serial devices."""
         return self._available_devices
 
     @available_devices.setter
@@ -419,6 +471,7 @@ class AutoTMModel(ModuleModel):
         self, frequency: float, return_loss: float, phase: float
     ) -> None:
         """Add a data point to the model. These data points are our intermediate data points read in via the serial connection.
+
         They will be saved in the according properties later on.
         """
         self.data_points.append((frequency, return_loss, phase))
@@ -431,16 +484,21 @@ class AutoTMModel(ModuleModel):
 
     @property
     def saved_positions(self):
+        """The saved_positions property is used to store the saved positions for tuning and matching of the probeheads."""
         return self._saved_positions
-    
+
     @saved_positions.setter
     def saved_positions(self, value):
         self._saved_positions = value
         self.saved_positions_changed.emit(value)
 
-    def add_saved_position(self, frequency: float, tuning_position: int, matching_position: int) -> None:
+    def add_saved_position(
+        self, frequency: float, tuning_position: int, matching_position: int
+    ) -> None:
         """Add a saved position to the model."""
-        self.saved_positions.append(SavedPosition(frequency, tuning_position, matching_position))
+        self.saved_positions.append(
+            SavedPosition(frequency, tuning_position, matching_position)
+        )
         self.saved_positions_changed.emit(self.saved_positions)
 
     def delete_saved_position(self, position: SavedPosition) -> None:
@@ -451,6 +509,7 @@ class AutoTMModel(ModuleModel):
     @property
     def measurement(self):
         """The measurement property is used to store the current measurement.
+
         This is the measurement that is shown in the main S11 plot
         """
         return self._measurement
@@ -463,8 +522,9 @@ class AutoTMModel(ModuleModel):
 
     @property
     def active_stepper(self):
+        """The active_stepper property is used to store the active stepper motor."""
         return self._active_stepper
-    
+
     @active_stepper.setter
     def active_stepper(self, value):
         self._active_stepper = value
@@ -474,6 +534,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def active_calibration(self):
+        """The active_calibration property is used to store the active calibration type."""
         return self._active_calibration
 
     @active_calibration.setter
@@ -482,6 +543,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def short_calibration(self):
+        """The short_calibration property is used to store the short calibration data."""
         return self._short_calibration
 
     @short_calibration.setter
@@ -497,6 +559,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def open_calibration(self):
+        """The open calibration data."""
         return self._open_calibration
 
     @open_calibration.setter
@@ -512,6 +575,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def load_calibration(self):
+        """The load calibration data."""
         return self._load_calibration
 
     @load_calibration.setter
@@ -527,6 +591,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def calibration(self):
+        """The calibration data."""
         return self._calibration
 
     @calibration.setter
@@ -536,6 +601,7 @@ class AutoTMModel(ModuleModel):
 
     @property
     def LUT(self):
+        """The lookup table for tuning and matching of the probeheads."""
         return self._LUT
 
     @LUT.setter
