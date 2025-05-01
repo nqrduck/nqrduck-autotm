@@ -1,8 +1,8 @@
 # NQRduck Module: nqrduck-autotm
 
-A module for the [nqrduck](https://github.com/nqrduck/nqrduck) project. This module is used to automatically tune and match mechanical and electrical probe coils.
+A module for the [nqrduck](https://git.private.coffee/nqrduck/nqrduck) project. This module is used to automatically tune and match mechanical and electrical probe coils.
 
-The module is used as a graphical user interface for the [ATM-system](https://github.com/nqrduck/ATM). The ATM-system consists of a C++ program running on the ESP32 microcontroller. The NQRduck autotm module communicates with the ESP32 microcontroller using the USB interface.
+The module is used as a graphical user interface for the [ATM-system](https://git.private.coffee/nqrduck/ATM). The ATM-system consists of a C++ program running on the ESP32 microcontroller. The NQRduck autotm module communicates with the ESP32 microcontroller using the USB interface.
 
 For mechanically tunable probe coils stepper motors for Tuning and Matching are used. 
 For electrically tunable probe coils varactor diodes are used. The system is able to output a Tuning and Matching voltage in a range from 0 to 5V.
@@ -15,7 +15,7 @@ Additionally, the system can measure the $S_{11}$ parameter of the probe coil ov
 Dependencies are handled via the pyproject.toml file.
 
 ### Setup
-To install the module you need the NQRduck core. You can find the installation instructions for the NQRduck core [here](https://github.com/nqrduck/nqrduck).
+To install the module you need the NQRduck core. You can find the installation instructions for the NQRduck core [here](https://git.private.coffee/nqrduck/nqrduck).
 
 Ideally you should install the module in a virtual environment. You can create a virtual environment by running the following command in the terminal:
 ```bash
@@ -47,4 +47,4 @@ The module is used together with the ATM-system. Connect the ATM-system to the P
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
 ## Contributing
-If you're interested in contributing to the project, start by checking out our [nqrduck-module template](https://github.com/nqrduck/nqrduck-module). To contribute to existing modules, please first open an issue in the respective module repository to discuss your ideas or report bugs.
+If you're interested in contributing to the project, start by checking out our [nqrduck-module template](https://git.private.coffee/nqrduck/nqrduck-module). To contribute to existing modules, please first open an issue in the respective module repository to discuss your ideas or report bugs.
